@@ -263,7 +263,7 @@ def _run_turn(
                 try:
                     arguments = json.loads(call["function"].get("arguments") or "{}")
                     result = _execute_tool(workspace, name, arguments, provider, browser)
-                except (WorkspaceError, OSError, ValueError, KeyError) as exc:
+                except (WorkspaceError, OSError, ValueError, KeyError, RuntimeError) as exc:
                     result = f"Tool error: {exc}"
                 history.append({"role": "tool", "tool_call_id": call["id"], "content": result})
         raise ProviderError("Maximum tool-call rounds reached. The task was stopped to prevent runaway execution.")
@@ -338,7 +338,7 @@ def _interactive() -> None:
             console.print(Panel(answer, title="Flux", border_style="green"))
         except ProviderError as exc:
             console.print(f"[red]Provider error:[/red] {exc}")
-        except (WorkspaceError, OSError, ValueError, json.JSONDecodeError) as exc:
+        except (WorkspaceError, OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
             console.print(f"[red]Execution error:[/red] {exc}")
     browser.close()
 
