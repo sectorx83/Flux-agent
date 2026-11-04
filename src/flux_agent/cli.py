@@ -389,6 +389,7 @@ def remote_submit(
     """Submit a task to a paired Flux host (Termux-friendly)."""
     from flux_agent.remote.client import RemoteClient
 
+    _load_dotenv()
     try:
         result = RemoteClient().submit(prompt, mode)
     except (ValueError, OSError) as exc:
@@ -401,11 +402,77 @@ def remote_tasks() -> None:
     """List tasks queued on the paired Flux host."""
     from flux_agent.remote.client import RemoteClient
 
+    _load_dotenv()
     try:
         result = RemoteClient().tasks()
     except (ValueError, OSError) as exc:
         raise typer.BadParameter(str(exc)) from exc
     console.print_json(data=result)
+
+
+@app.command("remote-pair")
+def remote_pair(
+    device_name: str = typer.Argument(..., help="Friendly name for the new device."),
+) -> None:
+    """Pair a new remote device. The returned token is shown only once."""
+    from flux_agent.remote.client import RemoteClient
+
+    _load_dotenv()
+    try:
+        result = RemoteClient().pair_device(device_name)
+    except (ValueError, OSError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    console.print_json(data=result)
+    console.print("[yellow]Copy the token now. It cannot be retrieved again.[/yellow]")
+
+
+@app.command("remote-devices")
+def remote_devices() -> None:
+    """List paired devices and their revocation status."""
+    from flux_agent.remote.client import RemoteClient
+
+    _load_dotenv()
+    try:
+        result = RemoteClient().devices()
+    except (ValueError, OSError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    table = Table("Device ID", "Name", "Created", "Last used", "Revoked")
+    for device in result["devices"]:
+        table.add_row(
+            device["id"], device["name"], device["created_at"],
+            device.get("last_used_at") or "never", device.get("revoked_at") or "no",
+        )
+    console.print(table)
+
+
+@app.command("remote-revoke")
+def remote_revoke(
+    device_id: str = typer.Argument(..., help="Paired device ID to revoke."),
+) -> None:
+    """Immediately revoke a paired device credential."""
+    from flux_agent.remote.client import RemoteClient
+
+    _load_dotenv()
+    try:
+        result = RemoteClient().revoke_device(device_id)
+    except (ValueError, OSError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    console.print(f"Revoked device [green]{result['device_id']}[/green]")
+
+
+@app.command("remote-watch")
+def remote_watch(task_id: int = typer.Argument(..., min=1, help="Remote task ID to stream.")) -> None:
+    """Stream task status changes and the final result from the remote host."""
+    from flux_agent.remote.client import RemoteClient
+
+    _load_dotenv()
+    try:
+        for update in RemoteClient().stream_task(task_id):
+            console.print_json(data=update)
+            if update.get("status") in {"completed", "failed"}:
+                break
+    except (ValueError, OSError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
 
 
 @app.command("memory-add")
