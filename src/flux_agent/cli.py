@@ -94,6 +94,30 @@ TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
+            "name": "integration_action",
+            "description": "Perform an approved action through a configured official service API.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": ["send_message", "create_github_issue", "create_google_task", "create_notion_task"]
+                    },
+                    "service": {
+                        "type": "string",
+                        "enum": ["slack", "discord", "telegram", "github", "google", "notion"]
+                    },
+                    "target": {"type": "string"},
+                    "title": {"type": "string"},
+                    "content": {"type": "string"}
+                },
+                "required": ["action", "service", "target", "content"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "browser_navigate",
             "description": "Open an HTTP or HTTPS page in the approved browser session.",
             "parameters": {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]},
@@ -200,6 +224,35 @@ def _execute_tool(
             {"name": item.name, "output": item.output, "error": item.error}
             for item in results
         ])
+    if name == "integration_action":
+        from flux_agent.integrations.hub import IntegrationHub
+
+        action = arguments.get("action", "")
+        service = arguments.get("service", "")
+        target = arguments.get("target", "")
+        title = arguments.get("title", "")
+        content = arguments.get("content", "")
+        summary = {
+            "action": action, "service": service, "target": target,
+            "title": title, "content_preview": content[:300],
+        }
+        console.print(Panel(json.dumps(summary, indent=2), title="External integration approval", border_style="yellow"))
+        if not Confirm.ask("Allow this external service action?"):
+            return "User declined the external integration action."
+        hub = IntegrationHub()
+        if action == "send_message":
+            if service not in {"slack", "discord", "telegram"}:
+                raise ValueError("send_message supports Slack, Discord, and Telegram.")
+            result = hub.send_message(service, target, content)
+        elif action == "create_github_issue" and service == "github":
+            result = hub.create_github_issue(target, title, content)
+        elif action == "create_google_task" and service == "google":
+            result = hub.create_google_task(target, title, content)
+        elif action == "create_notion_task" and service == "notion":
+            result = hub.create_notion_task(target, title, content)
+        else:
+            raise ValueError("The selected action and service combination is not supported.")
+        return json.dumps(result)
     if name in {"browser_navigate", "browser_read", "browser_click"}:
         from flux_agent.browser.automation import BrowserAutomation
 
@@ -320,7 +373,7 @@ def _interactive() -> None:
         if command == "/tools":
             console.print(
                 "Build mode tools: list_files, read_file, write_file, run_command, delegate_tasks, "
-                "browser_navigate, browser_read, browser_click"
+                "browser_navigate, browser_read, browser_click, integration_action"
             )
             continue
         if command == "/model":
@@ -593,6 +646,35 @@ def usage_price(
     store = UsageStore(Path(user_data_dir("flux-agent")) / "usage.sqlite3")
     store.set_price(model, input_price, output_price)
     console.print(f"Saved token pricing for [green]{model}[/green].")
+
+
+@app.command("connector-status")
+def connector_status() -> None:
+    """Show which official service credentials are configured."""
+    from flux_agent.integrations.hub import IntegrationHub
+
+    table = Table("Service", "Credential variable", "Status")
+    for item in IntegrationHub().status():
+        table.add_row(
+            item["name"], item["credential"],
+            "[green]configured[/green]" if item["configured"] else "[dim]not configured[/dim]",
+        )
+    console.print(table)
+
+
+@app.command("connector-test")
+def connector_test(
+    service: str = typer.Argument(..., help="github, slack, discord, telegram, google, or notion."),
+) -> None:
+    """Verify a configured official service credential against its API."""
+    from flux_agent.integrations.hub import IntegrationError, IntegrationHub
+
+    _load_dotenv()
+    try:
+        result = IntegrationHub().test(service)
+    except (IntegrationError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    console.print_json(data=result)
 
 
 @app.command("integrations")
