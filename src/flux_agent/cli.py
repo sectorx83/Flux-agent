@@ -251,23 +251,25 @@ def _run_turn(
 
         browser = BrowserAutomation()
     history.append({"role": "user", "content": text})
-    for _ in range(max_rounds):
-        message = provider.chat(history, TOOL_DEFINITIONS if mode == "build" else None)
-        history.append(message)
-        tool_calls = message.get("tool_calls") or []
-        if not tool_calls:
-            return message.get("content") or "(No text response.)"
-        for call in tool_calls:
-            name = call["function"]["name"]
-            arguments = json.loads(call["function"].get("arguments") or "{}")
-            try:
-                result = _execute_tool(workspace, name, arguments, provider, browser)
-            except (WorkspaceError, OSError, ValueError, KeyError) as exc:
-                result = f"Tool error: {exc}"
-            history.append({"role": "tool", "tool_call_id": call["id"], "content": result})
-    if owns_browser:
-        browser.close()
-    raise ProviderError("Maximum tool-call rounds reached. The task was stopped to prevent runaway execution.")
+    try:
+        for _ in range(max_rounds):
+            message = provider.chat(history, TOOL_DEFINITIONS if mode == "build" else None)
+            history.append(message)
+            tool_calls = message.get("tool_calls") or []
+            if not tool_calls:
+                return message.get("content") or "(No text response.)"
+            for call in tool_calls:
+                name = call["function"]["name"]
+                try:
+                    arguments = json.loads(call["function"].get("arguments") or "{}")
+                    result = _execute_tool(workspace, name, arguments, provider, browser)
+                except (WorkspaceError, OSError, ValueError, KeyError) as exc:
+                    result = f"Tool error: {exc}"
+                history.append({"role": "tool", "tool_call_id": call["id"], "content": result})
+        raise ProviderError("Maximum tool-call rounds reached. The task was stopped to prevent runaway execution.")
+    finally:
+        if owns_browser:
+            browser.close()
 
 
 def _interactive() -> None:
