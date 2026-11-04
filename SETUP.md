@@ -33,7 +33,7 @@ python -m pip install -e ".[dev]"
 Optional features:
 
 ```bash
-python -m pip install -e ".[browser,remote]"
+python -m pip install -e ".[browser,remote,memory]"
 playwright install chromium
 ```
 
@@ -67,7 +67,7 @@ uvicorn flux_agent.remote.server:create_app --factory --host 127.0.0.1 --port 87
 
 Keep the host bound to loopback unless it is protected by a private VPN or a properly configured HTTPS reverse proxy. Never expose the bearer-token API directly to the public internet. The API stores submitted tasks in SQLite. Run `flux remote-worker` in a second host terminal to execute queued tasks. Build-mode writes and commands request approval in that worker terminal.
 
-On Termux, install Flux and configure `FLUX_REMOTE_URL` with an HTTPS URL and `FLUX_REMOTE_TOKEN` with the paired token. Then use:
+On the host, configure the API administrator token in `FLUX_REMOTE_TOKEN`. On an administrator client, configure the HTTPS `FLUX_REMOTE_URL` and the administrator token, then run `flux remote-pair "Android phone"`. Copy the one-time token from the response. On Termux, set the same HTTPS URL and the device-specific token as `FLUX_REMOTE_TOKEN`. Device tokens are stored as hashes on the host, can only access their own tasks, and can be revoked with `flux remote-revoke DEVICE_ID`. Use `flux remote-watch TASK_ID` to stream status updates.
 
 ```bash
 flux remote-submit "Check my build" --mode plan
@@ -75,6 +75,26 @@ flux remote-tasks
 ```
 
 Run `flux workflow-worker` in a terminal to execute due local schedules. Workflow payloads use a `task` field and optional `mode` (`chat`, `plan`, or `build`). Use `--max-retries` and `--retry-delay` on `workflow-add` to configure retries. Add `--event-name EVENT` to wait for a named event, then trigger it with `flux workflow-trigger EVENT` or the authenticated remote API endpoint `POST /workflows/events/{event_name}`.
+
+## Semantic memory
+
+Install the optional local embedding engine:
+
+```bash
+python -m pip install -e ".[memory]"
+flux memory-add "The service uses SQLite" --semantic
+flux memory-search "What database does the service use?" --semantic
+```
+
+Existing notes can be embedded with `flux memory-reindex`. The first use downloads the configured FastEmbed model; embeddings are generated locally and are not sent to the chat provider.
+
+## Official connectors
+
+Set the relevant token variables in `.env` or your shell. Run `flux connector-status` to see configured credentials and `flux connector-test SERVICE` to verify one against its official API. Supported services are GitHub, Slack, Discord, Telegram, Google Tasks, and Notion tasks. Build-mode external actions always require interactive confirmation. Google Tasks uses an OAuth access token with the `https://www.googleapis.com/auth/tasks` scope. Flux does not implement provider consent screens or refresh-token storage.
+
+## Usage and model capabilities
+
+Use `flux usage` to inspect locally recorded token counts. Add exact model prices with `flux usage-price MODEL INPUT OUTPUT`, in a consistent currency unit per million tokens. Unknown prices remain unestimated. Custom model capabilities are declared in the `[flux.model_capabilities]` TOML table; unknown models are chat-only until explicitly declared.
 
 ## Provider fallback
 
