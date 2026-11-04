@@ -13,10 +13,12 @@
 - **Remote access:** paired devices with individual revocable credentials, device-scoped task history, persistent execution queues, and live task-status streaming.
 - **Browser automation:** optional Playwright controller with explicit approval for navigation and page interactions.
 - **Official service connectors:** GitHub issues, Slack/Discord/Telegram messaging, Google Tasks, and Notion tasks, with credential checks and approval-gated Build actions.
-- **Deployment adapters:** optional Vercel, Docker, and GitHub CLI deployment commands with explicit approval.
+- **Deployment operations:** approved Vercel, Docker, and GitHub CLI commands, deployment status inspection, and approval-gated Vercel rollback.
+- **Signed plugins:** Ed25519-verified packages and a signed HTTPS catalog. Package contents are stored but never executed.
+- **Environment management:** hidden-prompt secret entry and private local storage; variable values are never printed.
 - **Terminal experience:** Rich-powered interactive interface and one-shot CLI commands.
 
-Flux keeps service credentials in environment variables and calls the providers' official APIs. It does not currently host OAuth consent flows or a refresh-token vault. The public plugin marketplace and signed plugin packages remain future work. See [docs/ROADMAP.md](docs/ROADMAP.md) for the exact status.
+Flux calls providers' official APIs and reads credentials from process environment, a local `.env`, or the private Flux environment store. OAuth consent and refresh-token lifecycle remain external responsibilities. Signed plugin packages are verified before storage, but plugin code is not executed. See [docs/ROADMAP.md](docs/ROADMAP.md) for the exact status.
 
 ## Quick start
 
@@ -61,6 +63,11 @@ flux doctor
 flux init .
 flux integrations
 flux plugins
+flux env-list
+flux env-set GROQ_API_KEY
+flux env-unset GROQ_API_KEY
+flux deployment-status vercel DEPLOYMENT_URL
+flux deployment-rollback DEPLOYMENT_URL
 python -m pip install -e ".[memory]"
 flux memory-add "The project uses Python and pytest" --semantic
 flux memory-reindex
@@ -158,14 +165,17 @@ pytest
 
 - Semantic memory is optional and runs locally with FastEmbed. Install `.[memory]`, use `memory-add --semantic`, or index existing notes with `memory-reindex`. Existing keyword search remains available.
 - Build mode automatically decomposes complex independent work into bounded specialist tasks when appropriate. Specialists share read-only workspace file inspection tools; write and shell capabilities remain with the primary agent.
-- Plugin support discovers and installs manifests only. It is not a public marketplace and does not execute third-party plugin code.
+- Plugin packages and catalogs use Ed25519 signatures and SHA-256 integrity checks. Install only when the signing public key is trusted out of band. Packages are stored as data; Flux does not execute plugin code.
+- The plugin catalog is a signed HTTPS JSON index. `flux plugin-install ID VERSION --catalog URL --public-key BASE64_KEY` installs an exact catalog version. `flux plugin-install-package FILE --public-key BASE64_KEY` verifies a local package.
+- `flux env-set KEY` stores a value through a hidden prompt in the platform config directory. On POSIX systems the directory is mode 0700 and the file is mode 0600. `flux env-list` displays names only; `flux env-unset KEY` requires confirmation. Existing process environment variables take precedence.
+- `flux deployment-status` inspects Vercel deployments, Docker containers, and GitHub Actions runs through their official CLIs. `flux deployment-rollback` supports Vercel and requires confirmation. Other provider rollback flows are not yet supported.
 - Official connectors use provider-issued credentials: `GITHUB_TOKEN`, `SLACK_BOT_TOKEN`, `DISCORD_BOT_TOKEN`, `TELEGRAM_BOT_TOKEN`, `GOOGLE_ACCESS_TOKEN`, and `NOTION_TOKEN`. Google Tasks requires an access token with the Tasks API scope. Flux does not run OAuth consent flows or retain refresh tokens; obtain and rotate credentials through each provider.
 - Remote tasks persist across API restarts and are executed by a separate host worker. Device pairing issues one-time credentials stored as hashes; device task history is isolated and credentials can be revoked. Task streaming uses server-sent events.
 - Workflow schedules persist locally and require the foreground worker to run. They support bounded retries, named event triggers, an authenticated webhook endpoint, and worker-console notifications.
 
 ## Safety model
 
-Flux is not a sandbox. It runs with the permissions of the operating-system account that launches it. Workspace file tools resolve paths under the configured workspace, and file writes, shell commands, browser actions, and deployments require approval in the relevant interactive flow. These approval prompts are not an operating-system security boundary. Only install integrations and configure MCP servers from sources you trust. Keep credentials in environment variables or a local untracked `.env` file.
+Flux is not a sandbox. It runs with the permissions of the operating-system account that launches it. Workspace file tools resolve paths under the configured workspace, and file writes, shell commands, browser actions, and deployments require approval in the relevant interactive flow. These approval prompts are not an operating-system security boundary. Only install integrations and configure MCP servers from sources you trust. Keep credentials in the private Flux environment store, process environment, or a local untracked `.env` file. Never commit secrets. Signed plugin verification does not make plugin code safe to execute; Flux currently does not execute plugin packages.
 
 ## License
 
