@@ -142,7 +142,10 @@ def _execute_tool(
             messages = [
                 {
                     "role": "system",
-                    "content": "You are a specialist agent. Complete only the assigned subtask. Be concise and report evidence and limitations.",
+                    "content": (
+                        "You are a specialist agent. Complete only the assigned subtask. "
+                        "Be concise and report evidence and limitations."
+                    ),
                 },
                 {"role": "user", "content": task.instruction},
             ]
