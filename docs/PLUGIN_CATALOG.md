@@ -33,7 +33,7 @@ public = key.public_key().public_bytes(
 )
 fd = os.open("plugin-signing.key", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
 with os.fdopen(fd, "w", encoding="ascii") as handle:
-    handle.write(base64.b64encode(private).decode() + "\\n")
+    handle.write(base64.b64encode(private).decode() + "\n")
 print("Publish this trusted public key:", base64.b64encode(public).decode())
 PY
 ```
@@ -89,7 +89,7 @@ canonical = json.dumps(
     catalog, sort_keys=True, separators=(",", ":"), ensure_ascii=False
 ).encode()
 catalog["signature"] = base64.b64encode(private_key.sign(canonical)).decode()
-catalog_path.write_text(json.dumps(catalog, indent=2, sort_keys=True) + "\\n", encoding="utf-8")
+catalog_path.write_text(json.dumps(catalog, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 ```
 
 Host the signed catalog and archives on a static HTTPS endpoint. Obtain the public key from the publisher through a separate trusted channel. Do not trust a key merely because it is served by the same catalog URL.
