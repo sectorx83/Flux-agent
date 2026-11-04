@@ -262,7 +262,7 @@ class PluginRegistry:
                     if (
                         relative.is_absolute() or not relative.parts
                         or any(part in {"", ".", ".."} for part in relative.parts)
-                        or "\\\\" in name or name in files or entry.is_dir()
+                        or "\\" in name or name in files or entry.is_dir()
                     ):
                         raise ValueError(f"Unsafe or duplicate plugin package path: {name}")
                     mode = entry.external_attr >> 16
