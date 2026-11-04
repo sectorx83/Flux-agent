@@ -789,7 +789,7 @@ def deployment_rollback(
     from flux_agent.deployment.engine import DeploymentEngine
 
     console.print(Panel(target, title="Deployment rollback approval", border_style="yellow"))
-    if not Confirm.ask("Roll back this exact Vercel deployment?"):
+    if not Confirm.ask(f"Roll back this exact {provider} target?"):
         console.print("Rollback cancelled.")
         return
     try:
