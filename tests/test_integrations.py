@@ -75,3 +75,33 @@ def test_missing_credentials_fail_without_network(monkeypatch):
 def test_invalid_github_repository_is_rejected():
     with pytest.raises(ValueError, match="OWNER/REPO"):
         IntegrationHub().create_github_issue("not-a-repo", "Title", "Body")
+
+
+
+def test_google_connector_checks_tasks_api_scope(monkeypatch):
+    captured = {}
+
+    def request(method, url, **kwargs):
+        captured["url"] = url
+        captured["headers"] = kwargs["headers"]
+        return _response(url, {"items": []})
+
+    monkeypatch.setenv("GOOGLE_ACCESS_TOKEN", "google-secret")
+    monkeypatch.setattr("flux_agent.integrations.hub.httpx.request", request)
+    result = IntegrationHub().test("google")
+    assert result["connected"] is True
+    assert captured["url"].startswith("https://tasks.googleapis.com/tasks/v1/users/@me/lists")
+    assert captured["headers"]["Authorization"] == "Bearer google-secret"
+
+
+def test_telegram_network_errors_never_expose_bot_token(monkeypatch):
+    token = "123456:secret-bot-token"
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", token)
+
+    def fail(url, **_kwargs):
+        raise httpx.ConnectError(f"failed to connect to {url}")
+
+    monkeypatch.setattr("flux_agent.integrations.hub.httpx.get", fail)
+    with pytest.raises(IntegrationError) as error:
+        IntegrationHub().test("telegram")
+    assert token not in str(error.value)
