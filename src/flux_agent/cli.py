@@ -400,13 +400,15 @@ def remote_worker(
     import time
 
     from platformdirs import user_data_dir
+
     from flux_agent.remote.tasks import RemoteTaskStore
 
     _load_dotenv()
     config = load_config()
     workspace = Workspace(config.workspace)
     provider = ProviderRouter(config.provider, config.fallback_providers, config.model, config.request_timeout)
-    store = RemoteTaskStore(Path(user_data_dir("flux-agent")) / "remote-tasks.sqlite3")
+    db_path = Path(os.getenv("FLUX_REMOTE_DB", str(Path(user_data_dir("flux-agent")) / "remote-tasks.sqlite3")))
+    store = RemoteTaskStore(db_path)
     console.print("Remote worker online. Build tasks request approval in this terminal. Press Ctrl+C to stop.")
     try:
         while True:
@@ -423,7 +425,7 @@ def remote_worker(
                 store.fail(task["id"], str(exc))
                 console.print(f"[red]Remote task #{task['id']} failed:[/red] {exc}")
     except KeyboardInterrupt:
-        console.print("\\nRemote worker stopped.")
+        console.print("\nRemote worker stopped.")
 
 
 @app.command("workflow-worker")
@@ -432,7 +434,9 @@ def workflow_worker(
 ) -> None:
     """Run due local workflows; each payload needs a task and optional mode."""
     import time
+
     from platformdirs import user_data_dir
+
     from flux_agent.workflows.engine import WorkflowEngine
 
     _load_dotenv()
@@ -449,8 +453,11 @@ def workflow_worker(
         if mode not in {"chat", "plan", "build"}:
             raise ValueError("Workflow mode must be chat, plan, or build.")
         history = [{"role": "system", "content": SYSTEM_PROMPTS[mode]}]
-        answer = _run_turn(provider, workspace, mode, history, task_text, config.max_tool_rounds)
-        console.print(Panel(answer, title=f"Workflow: {name}", border_style="green"))
+        try:
+            answer = _run_turn(provider, workspace, mode, history, task_text, config.max_tool_rounds)
+            console.print(Panel(answer, title=f"Workflow: {name}", border_style="green"))
+        except Exception as exc:
+            console.print(f"[red]Workflow '{name}' failed:[/red] {exc}")
 
     console.print("Workflow worker online. Build actions ask for approval in this terminal. Press Ctrl+C to stop.")
     try:
@@ -461,4 +468,4 @@ def workflow_worker(
                 console.print(f"[red]Workflow error:[/red] {exc}")
             time.sleep(poll_interval)
     except KeyboardInterrupt:
-        console.print("\\nWorkflow worker stopped.")
+        console.print("\nWorkflow worker stopped.")

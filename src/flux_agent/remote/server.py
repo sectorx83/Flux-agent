@@ -10,8 +10,8 @@ from pathlib import Path
 def create_app():
     try:
         from fastapi import FastAPI, Header, HTTPException
-        from pydantic import BaseModel
         from platformdirs import user_data_dir
+        from pydantic import BaseModel
     except ImportError as exc:
         raise RuntimeError("Install remote support with: pip install 'flux-agent[remote]'") from exc
 
