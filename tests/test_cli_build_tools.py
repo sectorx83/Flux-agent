@@ -13,9 +13,11 @@ class FakeProvider:
     def __init__(self, first_tool: str = "read_file") -> None:
         self.calls = 0
         self.first_tool = first_tool
+        self.last_messages = []
 
     def chat(self, messages, tools=None):
         self.calls += 1
+        self.last_messages = list(messages)
         if self.calls == 1:
             return {
                 "role": "assistant",
@@ -67,7 +69,10 @@ def test_specialist_cannot_execute_write_tools(tmp_path: Path):
         )
     )
 
-    assert "write and execution tools are unavailable" in result[0]["output"]
+    assert any(
+        "write and execution tools are unavailable" in str(message.get("content", ""))
+        for message in provider.last_messages
+    )
     assert not (tmp_path / "facts.txt").exists()
 
 
