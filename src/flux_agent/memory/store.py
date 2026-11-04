@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -50,7 +50,7 @@ class MemoryStore:
         with self._connect() as db:
             cursor = db.execute(
                 "INSERT INTO memories(project, category, content, created_at) VALUES (?, ?, ?, ?)",
-                (project, category, clean, datetime.now(timezone.utc).isoformat()),
+                (project, category, clean, datetime.now(UTC).isoformat()),
             )
             return int(cursor.lastrowid)
 

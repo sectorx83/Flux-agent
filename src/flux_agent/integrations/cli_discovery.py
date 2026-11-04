@@ -1,7 +1,5 @@
 """Discover installed command-line integrations without invoking them."""
 
-from __future__ import annotations
-
 import shutil
 
 

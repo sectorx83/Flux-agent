@@ -176,7 +176,10 @@ def _interactive() -> None:
             console.print(f"Provider: {provider.active_provider} · Model: {config.model}")
             continue
         if command == "/settings":
-            console.print(f"Workspace: {workspace.root}\nConfig file: {config.workspace}\nProvider: {config.provider}\nFallbacks: {config.fallback_providers}")
+            console.print(
+                f"Workspace: {workspace.root}\nConfig file: {config.workspace}\n"
+                f"Provider: {config.provider}\nFallbacks: {config.fallback_providers}"
+            )
             continue
         if command == "/help":
             console.print("Use natural language for tasks. Switch modes with /chat, /plan or /build. Use /exit to quit.")
@@ -260,6 +263,7 @@ def memory_add(
 ) -> None:
     """Save a note to local project memory."""
     from platformdirs import user_data_dir
+
     from flux_agent.memory.store import MemoryStore
 
     path = Path(user_data_dir("flux-agent")) / "memory.sqlite3"
@@ -299,6 +303,7 @@ def integrations() -> None:
 def plugins() -> None:
     """List discovered plugin manifests. Discovery never executes plugin code."""
     from platformdirs import user_data_dir
+
     from flux_agent.integrations.plugins import PluginRegistry
 
     registry = PluginRegistry(Path(user_data_dir("flux-agent")) / "plugins")
@@ -315,6 +320,7 @@ def plugins() -> None:
 def workflow_list() -> None:
     """List locally scheduled workflow records."""
     from platformdirs import user_data_dir
+
     from flux_agent.workflows.engine import WorkflowEngine
 
     engine = WorkflowEngine(Path(user_data_dir("flux-agent")) / "workflows.sqlite3")
@@ -337,7 +343,9 @@ def workflow_add(
 ) -> None:
     """Schedule a workflow record. A worker must be running to execute due workflows."""
     from datetime import datetime
+
     from platformdirs import user_data_dir
+
     from flux_agent.workflows.engine import WorkflowEngine
 
     try:
@@ -369,6 +377,7 @@ def workflow_cancel(workflow_id: int = typer.Argument(..., help="Workflow ID to 
 def plugin_add_manifest(path: Path = typer.Argument(..., exists=True, dir_okay=False)) -> None:
     """Install a local plugin manifest only; plugin code is not executed."""
     from platformdirs import user_data_dir
+
     from flux_agent.integrations.plugins import PluginRegistry
 
     try:

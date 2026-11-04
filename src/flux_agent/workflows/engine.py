@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Callable
 
 
 class WorkflowEngine:
@@ -26,7 +26,7 @@ class WorkflowEngine:
     ) -> int:
         if interval_seconds is not None and interval_seconds < 60:
             raise ValueError("Recurring workflows must have an interval of at least 60 seconds.")
-        when = run_at.astimezone(timezone.utc)
+        when = run_at.astimezone(UTC)
         with sqlite3.connect(self.path) as db:
             cursor = db.execute(
                 "INSERT INTO workflows(name,payload,run_at,interval_seconds) VALUES(?,?,?,?)",
@@ -41,7 +41,7 @@ class WorkflowEngine:
         return [dict(row) for row in rows]
 
     def run_due(self, handler: Callable[[str, dict], None], now: datetime | None = None) -> int:
-        current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+        current = (now or datetime.now(UTC)).astimezone(UTC)
         completed = 0
         with sqlite3.connect(self.path) as db:
             db.row_factory = sqlite3.Row

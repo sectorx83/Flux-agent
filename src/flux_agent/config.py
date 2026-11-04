@@ -40,7 +40,8 @@ def load_config(path: Path | None = None) -> FluxConfig:
     model = os.getenv("FLUX_MODEL", data.get("model", "openai/gpt-oss-120b"))
     fallbacks_raw = os.getenv("FLUX_FALLBACK_PROVIDERS", "")
     configured_fallbacks = data.get("fallback_providers", [])
-    fallbacks = tuple(item.strip() for item in (fallbacks_raw.split(",") if fallbacks_raw else configured_fallbacks) if item.strip())
+    fallback_values = fallbacks_raw.split(",") if fallbacks_raw else configured_fallbacks
+    fallbacks = tuple(item.strip() for item in fallback_values if item.strip())
     return FluxConfig(
         provider=data.get("provider", "groq"),
         model=model,
