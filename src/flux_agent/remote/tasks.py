@@ -22,38 +22,56 @@ class RemoteTaskStore:
                     result TEXT,
                     error TEXT,
                     created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
+                    updated_at TEXT NOT NULL,
+                    device_id TEXT NOT NULL DEFAULT 'admin'
                 )"""
             )
+            columns = {row[1] for row in db.execute("PRAGMA table_info(remote_tasks)")}
+            if "device_id" not in columns:
+                db.execute(
+                    "ALTER TABLE remote_tasks ADD COLUMN device_id TEXT NOT NULL DEFAULT 'admin'"
+                )
 
     def _connect(self) -> sqlite3.Connection:
         db = sqlite3.connect(self.path, timeout=10)
         db.row_factory = sqlite3.Row
         return db
 
-    def enqueue(self, prompt: str, mode: str) -> dict[str, Any]:
+    def enqueue(self, prompt: str, mode: str, device_id: str = "admin") -> dict[str, Any]:
         now = datetime.now(UTC).isoformat()
         with self._connect() as db:
             cursor = db.execute(
-                "INSERT INTO remote_tasks(prompt,mode,created_at,updated_at) VALUES(?,?,?,?)",
-                (prompt, mode, now, now),
+                "INSERT INTO remote_tasks(prompt,mode,created_at,updated_at,device_id) VALUES(?,?,?,?,?)",
+                (prompt, mode, now, now, device_id),
             )
             task_id = int(cursor.lastrowid)
         return self.get(task_id)
 
-    def get(self, task_id: int) -> dict[str, Any]:
+    def get(self, task_id: int, device_id: str | None = None) -> dict[str, Any]:
         with self._connect() as db:
-            row = db.execute("SELECT * FROM remote_tasks WHERE id=?", (task_id,)).fetchone()
+            if device_id is None:
+                row = db.execute("SELECT * FROM remote_tasks WHERE id=?", (task_id,)).fetchone()
+            else:
+                row = db.execute(
+                    "SELECT * FROM remote_tasks WHERE id=? AND device_id=?",
+                    (task_id, device_id),
+                ).fetchone()
         if row is None:
             raise KeyError(task_id)
         return dict(row)
 
-    def list(self, limit: int = 100) -> list[dict[str, Any]]:
+    def list(self, limit: int = 100, device_id: str | None = None) -> list[dict[str, Any]]:
         with self._connect() as db:
-            rows = db.execute(
-                "SELECT * FROM remote_tasks ORDER BY id DESC LIMIT ?",
-                (max(1, min(limit, 500)),),
-            ).fetchall()
+            if device_id is None:
+                rows = db.execute(
+                    "SELECT * FROM remote_tasks ORDER BY id DESC LIMIT ?",
+                    (max(1, min(limit, 500)),),
+                ).fetchall()
+            else:
+                rows = db.execute(
+                    "SELECT * FROM remote_tasks WHERE device_id=? ORDER BY id DESC LIMIT ?",
+                    (device_id, max(1, min(limit, 500))),
+                ).fetchall()
         return [dict(row) for row in rows]
 
     def claim_next(self) -> dict[str, Any] | None:
