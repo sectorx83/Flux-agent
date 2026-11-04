@@ -121,3 +121,8 @@ Use `flux deployment-status PROVIDER TARGET` to inspect a Vercel deployment URL,
 ## Provider fallback
 
 Set `fallback_providers = ["gemini", "cerebras", "openrouter"]` in the `[flux]` config table, or set `FLUX_FALLBACK_PROVIDERS=gemini,cerebras,openrouter`. Configure only the API keys you intend to use. Groq remains the primary provider by default.
+
+
+## Production operations and security
+
+See [Production operations](docs/OPERATIONS.md) for credential handling, remote API deployment, backups, release procedures, and rollback limits. See [Security testing](docs/SECURITY_TESTING.md) for CI coverage and the threat model. For signed plugin publishing, see [Plugin catalogs](docs/PLUGIN_CATALOG.md).
