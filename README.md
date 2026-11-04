@@ -11,9 +11,9 @@ Flux Agent is under active development. The initial foundation includes:
 - Workspace-confined file listing, reading, and writing tools.
 - Approval-gated shell command execution in the configured workspace.
 - Local TOML configuration and environment-variable overrides.
-- Basic setup diagnostics and automated tests.
+- Provider fallback router for optional Gemini, Cerebras, and OpenRouter adapters.\n- Local SQLite project notes with full-text search.\n- Bounded multi-agent orchestration primitive and persistent workflow schedules.\n- Plugin manifest and installed CLI discovery, plus MCP stdio client foundation.\n- Optional Playwright browser controller and approved deployment CLI adapters.\n- Optional authenticated HTTPS remote API and Termux-friendly client.\n- Automated tests for core subsystems.
 
-The broader capabilities in the roadmap are planned and should not be mistaken for implemented features yet.
+This is an early developer release. Several subsystems are foundations rather than end-to-end products: workflow workers, a public plugin marketplace, signed and sandboxed plugins, vector embeddings, OAuth integrations, complete remote execution, and production deployment verification remain under development. See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Quick start
 
@@ -68,10 +68,10 @@ provider = "groq"
 model = "openai/gpt-oss-120b"
 workspace = "."
 request_timeout = 90
-max_tool_rounds = 8
+max_tool_rounds = 8\nfallback_providers = ["gemini", "cerebras", "openrouter"]
 ```
 
-`GROQ_API_KEY`, `FLUX_MODEL`, and `FLUX_WORKSPACE` can be supplied through environment variables. Copy `.env.example` to `.env` for local development if desired. `.env` is ignored by Git. Never commit API keys.
+`GROQ_API_KEY`, `FLUX_MODEL`, `FLUX_WORKSPACE`, and comma-separated `FLUX_FALLBACK_PROVIDERS` can be supplied through environment variables. Optional provider keys are `GEMINI_API_KEY`, `CEREBRAS_API_KEY`, and `OPENROUTER_API_KEY`. Copy `.env.example` to `.env` for local development if desired. `.env` is ignored by Git. Never commit API keys.
 
 ## Safety
 
@@ -90,7 +90,7 @@ Build-mode file operations are restricted to the configured workspace. File writ
 9. Secure remote access and Termux client, plus Android-native compatibility evaluation.
 10. Security hardening, cross-platform packaging, documentation, and release testing.
 
-See [SETUP.md](SETUP.md) for installation and development instructions.
+Optional extras: `pip install -e ".[browser]"` for Playwright or `pip install -e ".[remote]"` for the remote API. Install the browser binary with `playwright install chromium`.\n\nUseful commands include `flux memory-add "Project uses Python 3.12"`, `flux memory-search "Python"`, `flux integrations`, `flux remote-submit "Run tests"`, and `flux remote-tasks`.\n\nSee [SETUP.md](SETUP.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for details.
 
 ## License
 
