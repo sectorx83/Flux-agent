@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import sqlite3
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -119,15 +120,16 @@ class ProviderRouter:
     def _record_usage(self, provider: str, model: str, usage: dict[str, Any]) -> None:
         try:
             if self._usage_store is None:
-                from platformdirs import user_data_dir
                 from pathlib import Path
+
+                from platformdirs import user_data_dir
 
                 from flux_agent.usage.store import UsageStore
 
                 path = Path(user_data_dir("flux-agent")) / "usage.sqlite3"
                 self._usage_store = UsageStore(path)
             self._usage_store.record(provider, model, usage)
-        except (OSError, ValueError):
+        except (OSError, ValueError, sqlite3.Error):
             # Usage accounting must never turn a successful model response into a failed turn.
             return
 
