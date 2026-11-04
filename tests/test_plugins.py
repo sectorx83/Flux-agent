@@ -97,6 +97,7 @@ def test_signed_plugin_package_rejects_path_traversal(tmp_path: Path):
 
 
 def test_signed_catalog_downloads_exact_package_and_verifies_both_signatures(tmp_path: Path, monkeypatch):
+    pytest.importorskip("cryptography")
     import base64
     import hashlib
     import io
@@ -184,6 +185,7 @@ def test_plugin_catalog_requires_https(tmp_path: Path):
 
 
 def test_plugin_package_builder_creates_verifiable_archive(tmp_path: Path):
+    pytest.importorskip("cryptography")
     import base64
     import json
 
