@@ -13,5 +13,5 @@ Please do not publish credentials, exploit details, or sensitive user data in pu
 - Remote API access requires a high-entropy bearer token and should remain behind a private VPN or correctly configured HTTPS reverse proxy.
 - Browser navigation and clicks require interactive approval. Page content is untrusted input and must not be treated as instructions.
 - Workflow event webhooks require the same bearer-token authentication as the remote task API.
-- MCP server commands and plugin-provided executables are trusted local code; configure and run them only when their source is trusted.
+- MCP server commands are executable local programs and must be configured only from trusted sources. Plugin manifests are metadata-only and do not execute third-party code.
 - Run untrusted projects in a disposable, unprivileged environment.
