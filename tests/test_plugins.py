@@ -241,3 +241,19 @@ def test_plugin_package_builder_rejects_output_inside_source(tmp_path: Path):
     key = base64.b64encode(Ed25519PrivateKey.generate().private_bytes_raw()).decode()
     with pytest.raises(ValueError, match="outside"):
         build_signed_package(source, source / "output.fluxplugin", key)
+
+
+def test_signed_plugin_package_rejects_windows_style_paths(tmp_path: Path):
+    import base64
+    import zipfile
+
+    pytest.importorskip("cryptography")
+    package = tmp_path / "windows-path.fluxplugin"
+    with zipfile.ZipFile(package, "w") as archive:
+        archive.writestr(r"..\\escape.txt", b"bad")
+        archive.writestr("manifest.json", b"{}")
+        archive.writestr("SIGNATURE.ed25519", base64.b64encode(b"x" * 64))
+    with pytest.raises(ValueError, match="Unsafe or duplicate"):
+        PluginRegistry(tmp_path / "registry").install_package(
+            package, base64.b64encode(b"x" * 32).decode()
+        )
