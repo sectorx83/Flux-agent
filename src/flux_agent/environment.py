@@ -6,8 +6,8 @@ import json
 import os
 import re
 import tempfile
-from pathlib import Path
 from collections.abc import MutableMapping
+from pathlib import Path
 
 _KEY_PATTERN = re.compile(r"^[A-Z_][A-Z0-9_]{0,127}$")
 _RESERVED_KEYS = {
