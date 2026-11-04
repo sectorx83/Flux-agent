@@ -13,7 +13,7 @@
 - **Remote access:** paired devices with individual revocable credentials, device-scoped task history, persistent execution queues, and live task-status streaming.
 - **Browser automation:** optional Playwright controller with explicit approval for navigation and page interactions.
 - **Official service connectors:** GitHub issues, Slack/Discord/Telegram messaging, Google Tasks, and Notion tasks, with credential checks and approval-gated Build actions.
-- **Deployment operations:** approved Vercel, Docker, and GitHub CLI commands, deployment status inspection, and approval-gated Vercel rollback.
+- **Deployment operations:** approved Vercel, Docker, and GitHub CLI commands, deployment status inspection, and approval-gated Vercel and Docker Swarm rollback.
 - **Signed plugins:** Ed25519-verified packages and a signed HTTPS catalog. Package contents are stored but never executed.
 - **Environment management:** hidden-prompt secret entry and private local storage; variable values are never printed.
 - **Terminal experience:** Rich-powered interactive interface and one-shot CLI commands.
@@ -172,7 +172,7 @@ pytest
 - Plugin packages and catalogs use Ed25519 signatures and SHA-256 integrity checks. Install only when the signing public key is trusted out of band. Packages are stored as data; Flux does not execute plugin code.
 - The plugin catalog is a signed HTTPS JSON index. `flux plugin-install ID VERSION --catalog URL --public-key BASE64_KEY` installs an exact catalog version. `flux plugin-install-package FILE --public-key BASE64_KEY` verifies a local package.
 - `flux env-set KEY` stores a value through a hidden prompt in the platform config directory. On POSIX systems the directory is mode 0700 and the file is mode 0600. `flux env-list` displays names only; `flux env-unset KEY` requires confirmation. Existing process environment variables take precedence.
-- `flux deployment-status` inspects Vercel deployments, Docker containers, and GitHub Actions runs through their official CLIs. `flux deployment-rollback` supports Vercel and requires confirmation. Other provider rollback flows are not yet supported.
+- `flux deployment-status` inspects Vercel deployments, Docker containers, and GitHub Actions runs through their official CLIs. `flux deployment-rollback` supports Vercel deployments and Docker Swarm services, and requires confirmation. Generic Docker container rollback and GitHub Actions rollback are not supported.
 - Official connectors use provider-issued credentials: `GITHUB_TOKEN`, `SLACK_BOT_TOKEN`, `DISCORD_BOT_TOKEN`, `TELEGRAM_BOT_TOKEN`, `GOOGLE_ACCESS_TOKEN`, and `NOTION_TOKEN`. Google Tasks requires an access token with the Tasks API scope. Flux does not run OAuth consent flows or retain refresh tokens; obtain and rotate credentials through each provider.
 - Remote tasks persist across API restarts and are executed by a separate host worker. Device pairing issues one-time credentials stored as hashes; device task history is isolated and credentials can be revoked. Task streaming uses server-sent events.
 - Workflow schedules persist locally and require the foreground worker to run. They support bounded retries, named event triggers, an authenticated webhook endpoint, and worker-console notifications.
