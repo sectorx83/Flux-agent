@@ -45,7 +45,7 @@ jobs:
       - name: Install and import built wheel
         shell: bash
         run: |
-          python -m pip install --no-deps dist/*.whl
+          python -m pip install dist/*.whl
           python -c "import flux_agent; from flux_agent.cli import app; print(flux_agent.__version__)"
 
   publish:
