@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import httpx
 import pytest
 
 from flux_agent.remote.client import RemoteClient
@@ -46,3 +47,18 @@ def test_remote_task_database_migrates_legacy_rows(tmp_path: Path):
         )
     task = RemoteTaskStore(path).get(1)
     assert task["device_id"] == "admin"
+
+
+
+def test_remote_client_wraps_http_status_errors(monkeypatch):
+    from flux_agent.remote.client import RemoteClientError
+
+    def fail(*_args, **_kwargs):
+        request = httpx.Request("GET", "https://example.invalid/tasks")
+        response = httpx.Response(503, request=request)
+        raise httpx.HTTPStatusError("service unavailable", request=request, response=response)
+
+    monkeypatch.setattr("flux_agent.remote.client.httpx.request", fail)
+    client = RemoteClient("https://example.invalid", "x" * 48)
+    with pytest.raises(RemoteClientError, match="Remote API request failed"):
+        client.tasks()
