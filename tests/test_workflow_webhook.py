@@ -7,9 +7,8 @@ from flux_agent.workflows.engine import WorkflowEngine
 
 def _client(tmp_path, monkeypatch):
     pytest.importorskip("fastapi")
-    from fastapi.testclient import TestClient
-
     import platformdirs
+    from fastapi.testclient import TestClient
 
     monkeypatch.setenv("FLUX_REMOTE_TOKEN", "t" * 48)
     monkeypatch.setenv("FLUX_REMOTE_DB", str(tmp_path / "tasks.sqlite3"))
