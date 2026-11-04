@@ -1,10 +1,13 @@
-"""Persistent local project memory with SQLite full-text retrieval."""
+"""Persistent local project memory with keyword and vector retrieval."""
 
 from __future__ import annotations
 
+import math
 import sqlite3
+import struct
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Sequence
 
 
 class MemoryStore:
@@ -23,6 +26,12 @@ class MemoryStore:
                     content, category, project, content='memories', content_rowid='id'
                 )"""
             )
+            db.execute(
+                """CREATE TABLE IF NOT EXISTS memory_embeddings (
+                    memory_id INTEGER PRIMARY KEY REFERENCES memories(id) ON DELETE CASCADE,
+                    model TEXT NOT NULL, dimensions INTEGER NOT NULL, vector BLOB NOT NULL
+                )"""
+            )
             db.executescript(
                 """
                 CREATE TRIGGER IF NOT EXISTS memories_ai AFTER INSERT ON memories BEGIN
@@ -37,8 +46,9 @@ class MemoryStore:
             )
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path)
+        db = sqlite3.connect(self.path, timeout=10)
         db.row_factory = sqlite3.Row
+        db.execute("PRAGMA foreign_keys=ON")
         return db
 
     def add(self, project: str, content: str, category: str = "note") -> int:
@@ -47,12 +57,32 @@ class MemoryStore:
             raise ValueError("Memory content cannot be empty.")
         if len(clean) > 50_000:
             raise ValueError("Memory content exceeds the 50,000 character limit.")
+        if not project.strip() or not category.strip():
+            raise ValueError("Project and category cannot be empty.")
         with self._connect() as db:
             cursor = db.execute(
                 "INSERT INTO memories(project, category, content, created_at) VALUES (?, ?, ?, ?)",
                 (project, category, clean, datetime.now(UTC).isoformat()),
             )
             return int(cursor.lastrowid)
+
+    def set_embedding(self, memory_id: int, project: str, model: str, vector: Sequence[float]) -> None:
+        values = [float(value) for value in vector]
+        if not values or len(values) > 16_384 or not all(math.isfinite(value) for value in values):
+            raise ValueError("Embedding vector is empty, too large, or contains non-finite values.")
+        blob = struct.pack(f"<{len(values)}f", *values)
+        with self._connect() as db:
+            exists = db.execute(
+                "SELECT 1 FROM memories WHERE id=? AND project=?", (memory_id, project)
+            ).fetchone()
+            if exists is None:
+                raise KeyError(memory_id)
+            db.execute(
+                """INSERT INTO memory_embeddings(memory_id,model,dimensions,vector) VALUES(?,?,?,?)
+                   ON CONFLICT(memory_id) DO UPDATE SET
+                   model=excluded.model,dimensions=excluded.dimensions,vector=excluded.vector""",
+                (memory_id, model, len(values), blob),
+            )
 
     def search(self, project: str, query: str, limit: int = 8) -> list[dict[str, str | int]]:
         terms = [term for term in query.split() if term.isalnum()]
@@ -66,6 +96,49 @@ class MemoryStore:
                    WHERE memories_fts MATCH ? AND m.project = ?
                    ORDER BY bm25(memories_fts) LIMIT ?""",
                 (expression, project, max(1, min(limit, 50))),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def search_semantic(
+        self, project: str, query_vector: Sequence[float], model: str, limit: int = 8
+    ) -> list[dict[str, str | int | float]]:
+        query = [float(value) for value in query_vector]
+        if not query or not all(math.isfinite(value) for value in query):
+            raise ValueError("Query embedding must contain finite values.")
+        query_norm = math.sqrt(sum(value * value for value in query))
+        if query_norm == 0:
+            raise ValueError("Query embedding cannot be a zero vector.")
+        with self._connect() as db:
+            rows = db.execute(
+                """SELECT m.id,m.category,m.content,m.created_at,e.dimensions,e.vector
+                   FROM memories m JOIN memory_embeddings e ON e.memory_id=m.id
+                   WHERE m.project=? AND e.model=? AND e.dimensions=?""",
+                (project, model, len(query)),
+            ).fetchall()
+        ranked = []
+        for row in rows:
+            vector = struct.unpack(f"<{row['dimensions']}f", row["vector"])
+            norm = math.sqrt(sum(value * value for value in vector))
+            if norm == 0:
+                continue
+            score = sum(a * b for a, b in zip(query, vector, strict=True)) / (query_norm * norm)
+            ranked.append(
+                {
+                    "id": row["id"], "category": row["category"], "content": row["content"],
+                    "created_at": row["created_at"], "score": score,
+                }
+            )
+        ranked.sort(key=lambda item: float(item["score"]), reverse=True)
+        return ranked[: max(1, min(limit, 50))]
+
+    def list_unembedded(self, project: str, model: str, limit: int = 100) -> list[dict[str, str | int]]:
+        with self._connect() as db:
+            rows = db.execute(
+                """SELECT m.id,m.content FROM memories m
+                   LEFT JOIN memory_embeddings e ON e.memory_id=m.id
+                   WHERE m.project=? AND (e.memory_id IS NULL OR e.model<>?)
+                   ORDER BY m.id LIMIT ?""",
+                (project, model, max(1, min(limit, 500))),
             ).fetchall()
         return [dict(row) for row in rows]
 
