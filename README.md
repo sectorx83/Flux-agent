@@ -18,7 +18,7 @@
 - **Environment management:** hidden-prompt secret entry and private local storage; variable values are never printed.
 - **Terminal experience:** Rich-powered interactive interface and one-shot CLI commands.
 
-Flux calls providers' official APIs and reads credentials from process environment, a local `.env`, or the private Flux environment store. OAuth consent and refresh-token lifecycle remain external responsibilities. Signed plugin packages are verified before storage, but plugin code is not executed. See [docs/ROADMAP.md](docs/ROADMAP.md) for the exact status.
+Flux calls providers' official APIs and reads credentials from process environment, a local `.env`, or the private Flux environment store. OAuth consent and refresh-token lifecycle remain external responsibilities. Signed plugin packages are verified before storage, but plugin code is not executed. See [docs/ROADMAP.md](docs/ROADMAP.md) for the exact status. Plugin publisher and catalog instructions are in [docs/PLUGIN_CATALOG.md](docs/PLUGIN_CATALOG.md).
 
 ## Quick start
 
@@ -63,6 +63,9 @@ flux doctor
 flux init .
 flux integrations
 flux plugins
+flux plugin-pack ./my-plugin ./dist/my-plugin.fluxplugin --private-key-file ./plugin-signing.key
+flux plugin-install-package ./my-plugin.fluxplugin --public-key BASE64_TRUSTED_KEY
+flux plugin-install my-plugin 1.0.0 --catalog https://plugins.example.org/catalog.json --public-key BASE64_TRUSTED_KEY
 flux env-list
 flux env-set GROQ_API_KEY
 flux env-unset GROQ_API_KEY
