@@ -663,55 +663,6 @@ def env_list() -> None:
     from flux_agent.environment import EnvironmentStore
 
     store = EnvironmentStore(Path(user_config_dir("flux-agent")) / "secrets.json")
-    table = Table("Variable", "Status")
-    for key in store.keys():
-        table.add_row(key, "[green]stored privately[/green]")
-    if not store.keys():
-        console.print("No managed environment variables are stored.")
-        return
-    console.print(table)
-
-
-@app.command("env-set")
-def env_set(key: str = typer.Argument(..., help="Uppercase environment variable name.")) -> None:
-    """Store an environment variable using a hidden terminal prompt."""
-    from platformdirs import user_config_dir
-
-    from flux_agent.environment import EnvironmentStore
-
-    try:
-        value = Prompt.ask(f"Value for {key}", password=True)
-        EnvironmentStore(Path(user_config_dir("flux-agent")) / "secrets.json").set(key, value)
-    except (ValueError, OSError) as exc:
-        raise typer.BadParameter(str(exc)) from exc
-    console.print(f"Stored [green]{key}[/green] in the private Flux environment store.")
-
-
-@app.command("env-unset")
-def env_unset(key: str = typer.Argument(..., help="Managed environment variable name.")) -> None:
-    """Remove a managed environment variable from private storage."""
-    from platformdirs import user_config_dir
-
-    from flux_agent.environment import EnvironmentStore
-
-    if not Confirm.ask(f"Remove managed variable {key}?"):
-        console.print("No changes made.")
-        return
-    try:
-        removed = EnvironmentStore(Path(user_config_dir("flux-agent")) / "secrets.json").unset(key)
-    except (ValueError, OSError) as exc:
-        raise typer.BadParameter(str(exc)) from exc
-    console.print(f"{'Removed' if removed else 'Not found'} [green]{key}[/green].")
-
-
-@app.command("env-list")
-def env_list() -> None:
-    """List managed environment variable names without displaying secret values."""
-    from platformdirs import user_config_dir
-
-    from flux_agent.environment import EnvironmentStore
-
-    store = EnvironmentStore(Path(user_config_dir("flux-agent")) / "secrets.json")
     keys = store.keys()
     if not keys:
         console.print("No managed environment variables are stored.")
