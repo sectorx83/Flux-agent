@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import io
 import json
 import re
 import zipfile
@@ -138,6 +139,13 @@ class PluginRegistry:
         package_bytes = package_response.content
         if len(package_bytes) > MAX_PACKAGE_BYTES or hashlib.sha256(package_bytes).hexdigest() != expected_hash:
             raise ValueError("Plugin package size or catalog SHA-256 digest is invalid.")
+        try:
+            with zipfile.ZipFile(io.BytesIO(package_bytes)) as package_archive:
+                package_manifest = self._validate_manifest(json.loads(package_archive.read("manifest.json")))
+        except (zipfile.BadZipFile, KeyError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError("Catalog package does not contain a valid plugin manifest.") from exc
+        if package_manifest["id"] != plugin_id or package_manifest["version"] != version:
+            raise ValueError("Downloaded package identity does not match the signed catalog entry.")
         with tempfile.NamedTemporaryFile(suffix=".fluxplugin", delete=False) as temporary:
             temporary.write(package_bytes)
             temporary_path = Path(temporary.name)
