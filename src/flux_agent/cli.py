@@ -293,3 +293,89 @@ def integrations() -> None:
     for name, path in discover_clis().items():
         table.add_row(name, path or "not found", "[green]available[/green]" if path else "[dim]missing[/dim]")
     console.print(table)
+
+
+@app.command("plugins")
+def plugins() -> None:
+    """List discovered plugin manifests. Discovery never executes plugin code."""
+    from platformdirs import user_data_dir
+    from flux_agent.integrations.plugins import PluginRegistry
+
+    registry = PluginRegistry(Path(user_data_dir("flux-agent")) / "plugins")
+    table = Table("ID", "Name", "Version", "Permissions")
+    for plugin in registry.discover():
+        table.add_row(
+            plugin.plugin_id, plugin.name, plugin.version,
+            ", ".join(plugin.permissions) or "none",
+        )
+    console.print(table)
+
+
+@app.command("workflow-list")
+def workflow_list() -> None:
+    """List locally scheduled workflow records."""
+    from platformdirs import user_data_dir
+    from flux_agent.workflows.engine import WorkflowEngine
+
+    engine = WorkflowEngine(Path(user_data_dir("flux-agent")) / "workflows.sqlite3")
+    table = Table("ID", "Name", "Next run (UTC)", "Enabled", "Interval")
+    for item in engine.list():
+        table.add_row(
+            str(item["id"]), item["name"], item["run_at"],
+            "yes" if item["enabled"] else "no",
+            str(item["interval_seconds"] or "one-shot"),
+        )
+    console.print(table)
+
+
+@app.command("workflow-add")
+def workflow_add(
+    name: str = typer.Argument(..., help="Workflow name."),
+    payload: str = typer.Argument(..., help="JSON payload stored for the workflow handler."),
+    run_at: str = typer.Argument(..., help="ISO-8601 run time, including timezone."),
+    interval: int | None = typer.Option(None, help="Optional repeat interval in seconds (minimum 60)."),
+) -> None:
+    """Schedule a workflow record. A worker must be running to execute due workflows."""
+    from datetime import datetime
+    from platformdirs import user_data_dir
+    from flux_agent.workflows.engine import WorkflowEngine
+
+    try:
+        parsed_payload = json.loads(payload)
+        parsed_time = datetime.fromisoformat(run_at)
+        if parsed_time.tzinfo is None:
+            raise ValueError("run_at must include a timezone, for example +00:00.")
+        workflow_id = WorkflowEngine(
+            Path(user_data_dir("flux-agent")) / "workflows.sqlite3"
+        ).add(name, parsed_payload, parsed_time, interval)
+    except (ValueError, json.JSONDecodeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    console.print(f"Scheduled workflow [green]#{workflow_id}[/green]")
+
+
+@app.command("workflow-cancel")
+def workflow_cancel(workflow_id: int = typer.Argument(..., help="Workflow ID to disable.")) -> None:
+    """Disable a scheduled workflow."""
+    from platformdirs import user_data_dir
+    from flux_agent.workflows.engine import WorkflowEngine
+
+    engine = WorkflowEngine(Path(user_data_dir("flux-agent")) / "workflows.sqlite3")
+    if not engine.cancel(workflow_id):
+        raise typer.BadParameter(f"Workflow {workflow_id} was not found.")
+    console.print(f"Disabled workflow [green]#{workflow_id}[/green]")
+
+
+@app.command("plugin-add-manifest")
+def plugin_add_manifest(path: Path = typer.Argument(..., exists=True, dir_okay=False)) -> None:
+    """Install a local plugin manifest only; plugin code is not executed."""
+    from platformdirs import user_data_dir
+    from flux_agent.integrations.plugins import PluginRegistry
+
+    try:
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+        destination = PluginRegistry(
+            Path(user_data_dir("flux-agent")) / "plugins"
+        ).install_manifest(manifest)
+    except (ValueError, OSError, json.JSONDecodeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    console.print(f"Installed manifest [green]{destination}[/green]")
