@@ -65,3 +65,24 @@ def test_vercel_rollback_requires_approval_and_targets_exact_deployment(tmp_path
 def test_rollback_rejects_unsupported_provider(tmp_path: Path):
     with pytest.raises(ValueError, match="only for Vercel"):
         DeploymentEngine().rollback("docker-build", "container-id", tmp_path, approved=True)
+
+
+def test_docker_swarm_rollback_requires_approval_and_validates_service(tmp_path: Path, monkeypatch):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr("flux_agent.deployment.engine.shutil.which", lambda _binary: "/usr/bin/docker")
+    commands = []
+
+    def fake_run(command, **_kwargs):
+        commands.append(command)
+        return SimpleNamespace(returncode=0, stdout="Rollback initiated", stderr="")
+
+    monkeypatch.setattr("flux_agent.deployment.engine.subprocess.run", fake_run)
+    engine = DeploymentEngine()
+    with pytest.raises(PermissionError, match="approval"):
+        engine.rollback("docker-swarm", "api", tmp_path)
+    with pytest.raises(ValueError, match="service name"):
+        engine.rollback("docker-swarm", "--help", tmp_path, approved=True)
+    result = engine.rollback("docker-swarm", "production_api", tmp_path, approved=True)
+    assert result.returncode == 0
+    assert commands == [["docker", "service", "rollback", "production_api"]]
