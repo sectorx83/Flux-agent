@@ -32,6 +32,9 @@ class MemoryStore:
                     model TEXT NOT NULL, dimensions INTEGER NOT NULL, vector BLOB NOT NULL
                 )"""
             )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS memory_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+            )
             db.executescript(
                 """
                 CREATE TRIGGER IF NOT EXISTS memories_ai AFTER INSERT ON memories BEGIN
@@ -44,6 +47,14 @@ class MemoryStore:
                 END;
                 """
             )
+            rebuilt = db.execute(
+                "SELECT value FROM memory_metadata WHERE key='fts_rebuilt'"
+            ).fetchone()
+            if rebuilt is None:
+                db.execute("INSERT INTO memories_fts(memories_fts) VALUES('rebuild')")
+                db.execute(
+                    "INSERT INTO memory_metadata(key,value) VALUES('fts_rebuilt','1')"
+                )
 
     def _connect(self) -> sqlite3.Connection:
         db = sqlite3.connect(self.path, timeout=10)
