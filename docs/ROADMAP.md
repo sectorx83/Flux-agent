@@ -35,11 +35,14 @@
 - [x] Signed HTTPS plugin catalog with exact-version selection and trusted-key verification
 - [x] Deployment status inspection for Vercel, Docker, and GitHub Actions
 - [x] Approval-gated Vercel rollback for an exact deployment target
-- [ ] Docker and GitHub Actions rollback orchestration
+- [x] Approval-gated Docker Swarm service rollback
+- [ ] GitHub Actions rollback orchestration (workflow-specific rollback behavior is not universal)
 - [x] Private local environment store with atomic writes, restrictive POSIX permissions, hidden secret entry, and masked listing
 - [x] CI test matrix for Windows, macOS, and Linux on Python 3.11 and 3.12
 - [x] Tagged source/wheel builds, package validation, cross-platform install smoke tests, and GitHub release automation
-- [ ] Comprehensive integration and security testing
-- [ ] Complete developer and operator documentation
+- [x] Automated integration and security regression tests across supported operating systems
+- [x] Developer setup, plugin publishing, release, security-testing, and production-operations documentation
+
+Live provider deployments and real-account integration tests are not run in CI. GitHub Actions rollback remains workflow-specific and is not presented as a generic feature. The environment store protects files with operating-system permissions but does not encrypt secret values at rest.
 
 Flux intentionally does not include an operating-system sandbox. It uses explicit approvals and workspace path checks, but tools run with the permissions of the launching user. Those controls are guardrails, not isolation.
