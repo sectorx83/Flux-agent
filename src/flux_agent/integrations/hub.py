@@ -143,7 +143,7 @@ class IntegrationHub:
                 response.raise_for_status()
                 payload = response.json()
             except (httpx.HTTPError, ValueError) as exc:
-                raise IntegrationError(f"telegram request failed: {exc}") from exc
+                raise IntegrationError("Telegram message delivery failed; verify the token and network connection.") from exc
             if not payload.get("ok"):
                 raise IntegrationError(f"Telegram API error: {payload.get('description', 'unknown_error')}")
             return {"service": service, "message_id": payload.get("result", {}).get("message_id")}
