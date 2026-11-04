@@ -482,6 +482,49 @@ def memory_reindex(
     console.print(f"Indexed [green]{indexed}[/green] memories with {embedder.model_name}.")
 
 
+@app.command("usage")
+def usage() -> None:
+    """Show locally recorded token usage and configured cost estimates."""
+    from platformdirs import user_data_dir
+
+    from flux_agent.usage.store import UsageStore
+
+    store = UsageStore(Path(user_data_dir("flux-agent")) / "usage.sqlite3")
+    totals = store.totals()
+    table = Table("Provider", "Model", "Requests", "Input tokens", "Output tokens", "Total tokens", "Estimated cost")
+    for item in store.summary():
+        cost = "not configured" if item["estimated_cost"] is None else f'{item["estimated_cost"]:.6f}'
+        table.add_row(
+            item["provider"], item["model"], str(item["requests"]),
+            str(item["prompt_tokens"]), str(item["completion_tokens"]),
+            str(item["total_tokens"]), cost,
+        )
+    console.print(table)
+    console.print(
+        f"All-time: {totals['requests']} requests · {totals['total_tokens']} tokens"
+    )
+    if totals["estimated_cost"] is None:
+        console.print("Cost estimates are unavailable until model prices are configured.")
+    else:
+        console.print(f"Estimated configured spend: {totals['estimated_cost']:.6f}")
+
+
+@app.command("usage-price")
+def usage_price(
+    model: str = typer.Argument(..., help="Exact model identifier returned by the provider."),
+    input_price: float = typer.Argument(..., min=0, help="Price per one million input tokens."),
+    output_price: float = typer.Argument(..., min=0, help="Price per one million output tokens."),
+) -> None:
+    """Configure token prices for transparent local cost estimates."""
+    from platformdirs import user_data_dir
+
+    from flux_agent.usage.store import UsageStore
+
+    store = UsageStore(Path(user_data_dir("flux-agent")) / "usage.sqlite3")
+    store.set_price(model, input_price, output_price)
+    console.print(f"Saved token pricing for [green]{model}[/green].")
+
+
 @app.command("integrations")
 def integrations() -> None:
     """Show discovered local CLI integrations."""
