@@ -85,12 +85,17 @@ def create_app():
             raise HTTPException(status_code=400, detail="Invalid mode")
         if not request.prompt.strip() or len(request.prompt) > 20_000:
             raise HTTPException(status_code=400, detail="Prompt must contain 1-20000 characters")
-        return tasks.enqueue(request.prompt, request.mode, identity)
+        task = tasks.enqueue(request.prompt, request.mode, identity)
+        task.pop("device_id", None)
+        return task
 
     @app.get("/tasks")
     def list_tasks(authorization: str | None = Header(default=None)):
         identity = authenticate(authorization)
-        return {"tasks": tasks.list(limit=100, device_id=None if identity == "admin" else identity)}
+        records = tasks.list(limit=100, device_id=None if identity == "admin" else identity)
+        for task in records:
+            task.pop("device_id", None)
+        return {"tasks": records}
 
     def get_authorized_task(task_id: int, identity: str):
         try:
