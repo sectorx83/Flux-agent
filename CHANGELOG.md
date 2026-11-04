@@ -14,3 +14,7 @@
 - Add official GitHub, Slack, Discord, Telegram, Google Tasks, and Notion API adapters with approval-gated Build actions.
 - Add capability-aware model selection and local token usage/cost reporting.
 - Add hashed per-device remote credentials, device-scoped task access, revocation, and server-sent event task streaming.
+- Add Ed25519-signed plugin packages, signed HTTPS catalog verification, and SHA-256 package integrity checks.
+- Add private environment-variable storage with hidden-prompt entry, atomic writes, and restrictive POSIX permissions.
+- Add deployment status inspection and approval-gated Vercel rollback.
+- Expand CI to Windows, macOS, and Linux on Python 3.11 and 3.12; add tagged distribution builds and release automation.
