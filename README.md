@@ -7,16 +7,16 @@
 - **Three working modes:** Chat for conversation, Plan for structured plans, and Build for approved workspace edits and command execution.
 - **Multiple AI providers:** Groq is the default, with optional Gemini, Cerebras, and OpenRouter fallbacks.
 - **Tool execution:** list and read project files, write files after confirmation, and run shell commands after confirmation.
-- **Project memory:** persistent SQLite notes with full-text search, scoped to the active workspace.
+- **Project memory:** workspace-scoped SQLite notes with full-text search and optional local vector embeddings through FastEmbed.
 - **Multi-agent Build tool:** delegate up to four independent subtasks to parallel specialist agents and collect their results.
 - **Workflow automation:** persistent one-shot and recurring schedules, with a foreground worker that executes due workflows.
-- **Remote access:** authenticated HTTPS task submission from another device, including Android Termux, backed by a persistent SQLite queue and a host-side worker.
+- **Remote access:** paired devices with individual revocable credentials, device-scoped task history, persistent execution queues, and live task-status streaming.
 - **Browser automation:** optional Playwright controller with explicit approval for navigation and page interactions.
-- **Integration foundations:** MCP stdio client, local CLI discovery, and plugin manifest registry.
+- **Official service connectors:** GitHub issues, Slack/Discord/Telegram messaging, Google Tasks, and Notion tasks, with credential checks and approval-gated Build actions.
 - **Deployment adapters:** optional Vercel, Docker, and GitHub CLI deployment commands with explicit approval.
 - **Terminal experience:** Rich-powered interactive interface and one-shot CLI commands.
 
-Some larger integrations remain extension points rather than finished connectors. Flux does not currently ship a public plugin marketplace, OAuth app suite, or embedding-based vector memory. See [docs/ROADMAP.md](docs/ROADMAP.md) for the exact status.
+Flux keeps service credentials in environment variables and calls the providers' official APIs. It does not currently host OAuth consent flows or a refresh-token vault. The public plugin marketplace and signed plugin packages remain future work. See [docs/ROADMAP.md](docs/ROADMAP.md) for the exact status.
 
 ## Quick start
 
@@ -61,8 +61,14 @@ flux doctor
 flux init .
 flux integrations
 flux plugins
-flux memory-add "The project uses Python and pytest"
-flux memory-search "pytest"
+python -m pip install -e ".[memory]"
+flux memory-add "The project uses Python and pytest" --semantic
+flux memory-reindex
+flux memory-search "Which test runner does this project use?" --semantic
+flux usage
+flux usage-price openai/gpt-oss-120b 0.10 0.50
+flux connector-status
+flux connector-test github
 flux workflow-add "nightly-check" '{"task":"run the test suite","mode":"plan"}' "2026-11-05T02:00:00+00:00" --max-retries 3 --retry-delay 30
 flux workflow-add "on-push" '{"task":"inspect recent changes","mode":"plan"}' "2026-11-05T02:00:00+00:00" --event-name git.push
 flux workflow-trigger git.push
@@ -88,6 +94,18 @@ fallback_providers = ["gemini", "cerebras", "openrouter"]
 ```
 
 Environment keys: `GROQ_API_KEY`, `GEMINI_API_KEY`, `CEREBRAS_API_KEY`, and `OPENROUTER_API_KEY`. You only need keys for providers you use. Never commit API keys.
+
+Capability-aware routing checks each candidate model before sending a request. Known default models include chat and tool calling. Declare capabilities for custom models explicitly:
+
+```toml
+[flux.model_capabilities]
+"my-provider/my-tool-model" = ["chat", "tool_calling"]
+"my-provider/my-vision-model" = ["chat", "vision"]
+```
+
+Unknown models are treated conservatively as chat-only. Image requests require `vision`; Build tool calls require `tool_calling`.
+
+Token usage is recorded locally when providers return usage metadata. Configure prices explicitly with `flux usage-price MODEL INPUT OUTPUT`, using a consistent currency unit per million tokens. Flux does not guess provider prices, so unpriced usage remains visible without a fabricated cost estimate.
 
 ## Browser and deployment extras
 
@@ -118,11 +136,15 @@ flux remote-worker
 On Termux or another client, set `FLUX_REMOTE_URL` to the host's HTTPS URL and `FLUX_REMOTE_TOKEN` to the same high-entropy token:
 
 ```bash
+flux remote-pair "Android phone" # Run with the host administrator token; save the one-time device token
+flux remote-devices
+flux remote-revoke DEVICE_ID
 flux remote-submit "Review the project and suggest fixes" --mode plan
 flux remote-tasks
+flux remote-watch TASK_ID
 ```
 
-The API and worker share the persistent database at the platform data directory. Set `FLUX_REMOTE_DB` on the API and use the same database path for the worker only if you need a custom location. Keep the API on loopback behind a private VPN or a correctly configured HTTPS reverse proxy. Do not expose the bearer-token API directly to the public internet.
+The API and worker share the persistent task database at the platform data directory. Device credentials are stored separately in `remote-devices.sqlite3`; set `FLUX_REMOTE_DEVICE_DB` to override that path. Pair devices with the administrator token, then put the one-time device token in that device's `FLUX_REMOTE_TOKEN`. Device tokens can only view their own tasks. Revoke them from the host with `flux remote-revoke DEVICE_ID`. Use `flux remote-watch TASK_ID` to stream task status and the final result. Keep the API on loopback behind a private VPN or a correctly configured HTTPS reverse proxy. Do not expose the bearer-token API directly to the public internet.
 
 ## Tests
 
@@ -134,11 +156,11 @@ pytest
 
 ## Current limitations
 
-- Project memory uses SQLite full-text search, not embeddings or a vector database.
+- Semantic memory is optional and runs locally with FastEmbed. Install `.[memory]`, use `memory-add --semantic`, or index existing notes with `memory-reindex`. Existing keyword search remains available.
 - Build mode automatically decomposes complex independent work into bounded specialist tasks when appropriate. Specialists share read-only workspace file inspection tools; write and shell capabilities remain with the primary agent.
 - Plugin support discovers and installs manifests only. It is not a public marketplace and does not execute third-party plugin code.
-- MCP is a stdio client foundation; OAuth integrations for chat platforms, Google services, and project management tools are not bundled yet.
-- Remote tasks persist across API restarts and are executed by a separate host worker. Device pairing, per-device identities, and session revocation are not implemented yet.
+- Official connectors use provider-issued credentials: `GITHUB_TOKEN`, `SLACK_BOT_TOKEN`, `DISCORD_BOT_TOKEN`, `TELEGRAM_BOT_TOKEN`, `GOOGLE_ACCESS_TOKEN`, and `NOTION_TOKEN`. Google Tasks requires an access token with the Tasks API scope. Flux does not run OAuth consent flows or retain refresh tokens; obtain and rotate credentials through each provider.
+- Remote tasks persist across API restarts and are executed by a separate host worker. Device pairing issues one-time credentials stored as hashes; device task history is isolated and credentials can be revoked. Task streaming uses server-sent events.
 - Workflow schedules persist locally and require the foreground worker to run. They support bounded retries, named event triggers, an authenticated webhook endpoint, and worker-console notifications.
 
 ## Safety model
