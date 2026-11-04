@@ -52,8 +52,11 @@ def create_app():
     @app.post("/devices/pair")
     def pair_device(request: dict, authorization: str | None = Header(default=None)):
         authorize_admin(authorization)
+        device_name = request.get("device_name")
+        if not isinstance(device_name, str) or not device_name.strip() or len(device_name.strip()) > 80:
+            raise HTTPException(status_code=400, detail="Device name must contain 1-80 characters.")
         try:
-            device, token = devices.pair(str(request.get("device_name", "")))
+            device, token = devices.pair(device_name)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"device": device, "token": token, "warning": "Save this token now. It cannot be retrieved later."}
