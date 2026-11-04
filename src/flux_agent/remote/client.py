@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import os
+from collections.abc import Iterator
 
 import httpx
 
@@ -30,3 +32,34 @@ class RemoteClient:
 
     def tasks(self) -> dict:
         return self._request("GET", "/tasks")
+
+    def pair_device(self, device_name: str) -> dict:
+        return self._request("POST", "/devices/pair", json={"device_name": device_name})
+
+    def devices(self) -> dict:
+        return self._request("GET", "/devices")
+
+    def revoke_device(self, device_id: str) -> dict:
+        return self._request("DELETE", f"/devices/{device_id}")
+
+    def task(self, task_id: int) -> dict:
+        if task_id < 1:
+            raise ValueError("Task ID must be positive.")
+        return self._request("GET", f"/tasks/{task_id}")
+
+    def stream_task(self, task_id: int) -> Iterator[dict]:
+        if task_id < 1:
+            raise ValueError("Task ID must be positive.")
+        with httpx.stream(
+            "GET",
+            f"{self.base_url}/tasks/{task_id}/stream",
+            headers={"Authorization": f"Bearer {self.token}", "Accept": "text/event-stream"},
+            timeout=None,
+        ) as response:
+            response.raise_for_status()
+            for line in response.iter_lines():
+                if line.startswith("data: "):
+                    try:
+                        yield json.loads(line[6:])
+                    except json.JSONDecodeError:
+                        continue
