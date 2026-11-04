@@ -594,10 +594,12 @@ def memory_reindex(
     project = str(load_config().workspace)
     memory = MemoryStore(Path(user_data_dir("flux-agent")) / "memory.sqlite3")
     embedder = LocalEmbedder()
-    pending = memory.list_unembedded(project, embedder.model_name, 500)
     indexed = 0
-    for offset in range(0, len(pending), batch_size):
-        batch = pending[offset : offset + batch_size]
+    while True:
+        pending = memory.list_unembedded(project, embedder.model_name, 500)
+        if not pending:
+            break
+        batch = pending[:batch_size]
         vectors = embedder.embed([str(item["content"]) for item in batch])
         for item, vector in zip(batch, vectors, strict=True):
             memory.set_embedding(int(item["id"]), project, embedder.model_name, vector)
