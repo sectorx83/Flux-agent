@@ -276,6 +276,7 @@ def memory_add(
 def memory_search(query: str = typer.Argument(..., help="Search local project memory.")) -> None:
     """Search notes saved for the current workspace."""
     from platformdirs import user_data_dir
+
     from flux_agent.memory.store import MemoryStore
 
     path = Path(user_data_dir("flux-agent")) / "memory.sqlite3"
@@ -365,6 +366,7 @@ def workflow_add(
 def workflow_cancel(workflow_id: int = typer.Argument(..., help="Workflow ID to disable.")) -> None:
     """Disable a scheduled workflow."""
     from platformdirs import user_data_dir
+
     from flux_agent.workflows.engine import WorkflowEngine
 
     engine = WorkflowEngine(Path(user_data_dir("flux-agent")) / "workflows.sqlite3")

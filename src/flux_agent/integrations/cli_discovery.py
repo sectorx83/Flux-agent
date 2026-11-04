@@ -1,5 +1,7 @@
 """Discover installed command-line integrations without invoking them."""
 
+# isort: skip_file
+
 import shutil
 
 
