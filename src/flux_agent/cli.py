@@ -276,7 +276,10 @@ def _interactive() -> None:
     _load_dotenv()
     config = load_config()
     workspace = Workspace(config.workspace)
-    provider = ProviderRouter(config.provider, config.fallback_providers, config.model, config.request_timeout)
+    provider = ProviderRouter(
+        config.provider, config.fallback_providers, config.model,
+        config.request_timeout, config.model_capabilities,
+    )
     mode = "chat"
     history: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPTS[mode]}]
     from flux_agent.browser.automation import BrowserAutomation
@@ -289,7 +292,7 @@ def _interactive() -> None:
         )
     )
     console.print(f"Workspace: [cyan]{workspace.root}[/cyan]")
-    console.print(f"Provider: [green]{config.provider}[/green] · Model: [cyan]{config.model}[/cyan]")
+    console.print(f"Provider: [green]{provider.active_provider}[/green] · Model: [cyan]{provider.active_model}[/cyan]")
     console.print("Commands: /chat /plan /build /mode /tools /model /settings /help /exit")
     while True:
         try:
@@ -321,7 +324,7 @@ def _interactive() -> None:
             )
             continue
         if command == "/model":
-            console.print(f"Provider: {provider.active_provider} · Model: {config.model}")
+            console.print(f"Provider: {provider.active_provider} · Model: {provider.active_model}")
             continue
         if command == "/settings":
             console.print(
