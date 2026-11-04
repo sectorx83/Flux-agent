@@ -13,7 +13,7 @@ from platformdirs import user_config_dir
 @dataclass(frozen=True, slots=True)
 class FluxConfig:
     provider: str = "groq"
-    model: str = "llama-3.3-70b-versatile"
+    model: str = "openai/gpt-oss-120b"
     workspace: Path = Path.cwd()
     request_timeout: float = 90.0
     max_tool_rounds: int = 8
@@ -36,7 +36,7 @@ def load_config(path: Path | None = None) -> FluxConfig:
 
     workspace_value = os.getenv("FLUX_WORKSPACE", data.get("workspace", "."))
     workspace = Path(workspace_value).expanduser().resolve()
-    model = os.getenv("FLUX_MODEL", data.get("model", "llama-3.3-70b-versatile"))
+    model = os.getenv("FLUX_MODEL", data.get("model", "openai/gpt-oss-120b"))
     return FluxConfig(
         provider=data.get("provider", "groq"),
         model=model,
