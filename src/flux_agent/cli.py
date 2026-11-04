@@ -707,6 +707,42 @@ def plugins() -> None:
     console.print(table)
 
 
+@app.command("deployment-status")
+def deployment_status(
+    provider: str = typer.Argument(..., help="vercel, docker-build, or github-workflow."),
+    target: str = typer.Argument(..., help="Deployment URL, container ID, or GitHub Actions run ID."),
+) -> None:
+    """Inspect deployment or workflow status using the provider's official CLI."""
+    from flux_agent.deployment.engine import DeploymentEngine
+
+    try:
+        result = DeploymentEngine().status(provider, target, load_config().workspace)
+    except (ValueError, OSError, RuntimeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    console.print_json(data={
+        "provider": result.provider, "target": result.target,
+        "state": result.state, "details": result.details,
+    })
+
+
+@app.command("deployment-rollback")
+def deployment_rollback(
+    target: str = typer.Argument(..., help="Exact Vercel deployment URL or ID to roll back."),
+) -> None:
+    """Roll back a Vercel deployment after an explicit confirmation."""
+    from flux_agent.deployment.engine import DeploymentEngine
+
+    console.print(Panel(target, title="Deployment rollback approval", border_style="yellow"))
+    if not Confirm.ask("Roll back this exact Vercel deployment?"):
+        console.print("Rollback cancelled.")
+        return
+    try:
+        result = DeploymentEngine().rollback("vercel", target, load_config().workspace, approved=True)
+    except (ValueError, OSError, RuntimeError, PermissionError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    console.print(Panel(result.output or "Rollback command completed.", title="Vercel rollback"))
+
+
 @app.command("workflow-list")
 def workflow_list() -> None:
     """List locally scheduled workflow records."""
