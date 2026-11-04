@@ -21,7 +21,9 @@ class BrowserAutomation:
         self._browser = await self._playwright.chromium.launch(headless=self.headless)
         self._page = await self._browser.new_page()
 
-    async def navigate(self, url: str) -> str:
+    async def navigate(self, url: str, approved: bool = False) -> str:
+        if not approved:
+            raise PermissionError("Browser navigation requires explicit approval.")
         parsed = urlparse(url)
         if parsed.scheme not in {"http", "https"} or not parsed.hostname:
             raise ValueError("Browser navigation only accepts absolute HTTP or HTTPS URLs.")
@@ -37,7 +39,9 @@ class BrowserAutomation:
             raise RuntimeError("Browser is not started.")
         return (await self._page.locator("body").inner_text())[:max_chars]
 
-    async def click(self, selector: str) -> None:
+    async def click(self, selector: str, approved: bool = False) -> None:
+        if not approved:
+            raise PermissionError("Browser interaction requires explicit approval.")
         if self._page is None:
             raise RuntimeError("Browser is not started.")
         await self._page.locator(selector).first.click(timeout=10_000)
