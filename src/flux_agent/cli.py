@@ -804,6 +804,46 @@ def plugin_add_manifest(path: Path = typer.Argument(..., exists=True, dir_okay=F
     console.print(f"Installed manifest [green]{destination}[/green]")
 
 
+@app.command("plugin-install-package")
+def plugin_install_package(
+    package: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
+    public_key: str = typer.Option(..., "--public-key", help="Trusted base64 Ed25519 public key."),
+) -> None:
+    """Verify and install a signed local plugin package without executing its code."""
+    from platformdirs import user_data_dir
+
+    from flux_agent.integrations.plugins import PluginRegistry
+
+    try:
+        destination = PluginRegistry(Path(user_data_dir("flux-agent")) / "plugins").install_package(
+            package, public_key
+        )
+    except (ValueError, OSError, RuntimeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    console.print(f"Verified and installed signed package [green]{destination}[/green]")
+
+
+@app.command("plugin-install")
+def plugin_install(
+    plugin_id: str = typer.Argument(..., help="Plugin identifier from the signed catalog."),
+    version: str = typer.Argument(..., help="Exact plugin version to install."),
+    catalog_url: str = typer.Option(..., "--catalog", help="HTTPS URL of the signed plugin catalog."),
+    public_key: str = typer.Option(..., "--public-key", help="Trusted base64 Ed25519 catalog signing key."),
+) -> None:
+    """Install an exact plugin version from a trusted signed HTTPS catalog."""
+    from platformdirs import user_data_dir
+
+    from flux_agent.integrations.plugins import PluginRegistry
+
+    try:
+        destination = PluginRegistry(Path(user_data_dir("flux-agent")) / "plugins").install_from_catalog(
+            catalog_url, plugin_id, version, public_key
+        )
+    except (ValueError, OSError, RuntimeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    console.print(f"Verified catalog package [green]{destination}[/green]")
+
+
 @app.command("remote-worker")
 def remote_worker(
     poll_interval: float = typer.Option(2.0, min=0.2, max=60.0, help="Seconds between queue checks."),
