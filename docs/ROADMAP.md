@@ -15,12 +15,19 @@
 
 ## Phase 2: Intelligence and connectivity
 
-- [ ] Embedding-backed semantic memory with an optional local embedding provider and vector index
-- [ ] Official Discord, Telegram, GitHub, Google, Slack, and task-management integrations
-- [ ] Model capability-aware routing
-- [ ] Usage tracking and cost reporting
-- [ ] Remote device pairing and per-device credentials
-- [ ] Remote task streaming and session revocation
+- [x] Embedding-backed semantic memory with an optional local FastEmbed provider and SQLite vector index
+- [x] Official GitHub, Slack, Discord, Telegram, Google Tasks, and Notion task API integrations
+- [x] Capability-aware model routing for chat, tool calling, and vision requirements
+- [x] Local token usage tracking and explicit per-model cost estimates
+- [x] Remote device pairing with hashed per-device credentials and revocation
+- [x] Server-sent event task streaming, device-scoped task access, and credential revocation
+
+## Phase 2 implementation notes
+
+- Semantic embeddings are optional, generated locally, and model-versioned. Existing FTS keyword search remains available.
+- Service credentials are environment-provided. Flux calls official APIs but does not host OAuth consent screens or manage refresh tokens.
+- Model prices are user-supplied per million tokens. Unpriced requests are not assigned invented costs.
+- Remote device credentials are shown once, stored as hashes, scoped to their own task history, and revocable by the administrator.
 
 ## Phase 3: Production and ecosystem
 
