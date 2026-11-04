@@ -79,3 +79,53 @@ def test_specialist_cannot_execute_write_tools(tmp_path: Path):
 def test_browser_tools_are_registered_for_build_mode():
     names = {item["function"]["name"] for item in TOOL_DEFINITIONS}
     assert {"browser_navigate", "browser_read", "browser_click"} <= names
+
+
+
+class FakeBrowser:
+    _page = object()
+
+    def __init__(self):
+        self.navigated = []
+        self.clicked = []
+
+    def navigate(self, url, approved=False):
+        self.navigated.append((url, approved))
+        return "200 · Example · https://example.com"
+
+    def text(self, max_chars=20_000):
+        return "Example page text"[:max_chars]
+
+    def click(self, selector, approved=False):
+        self.clicked.append((selector, approved))
+
+
+def test_browser_navigation_requires_confirmation(tmp_path: Path, monkeypatch):
+    from flux_agent import cli
+
+    browser = FakeBrowser()
+    monkeypatch.setattr(cli.Confirm, "ask", lambda *_args, **_kwargs: False)
+    result = _execute_tool(
+        Workspace(tmp_path),
+        "browser_navigate",
+        {"url": "https://example.com"},
+        browser=browser,
+    )
+    assert result == "User declined browser navigation."
+    assert browser.navigated == []
+
+
+def test_browser_navigation_and_click_use_approved_actions(tmp_path: Path, monkeypatch):
+    from flux_agent import cli
+
+    browser = FakeBrowser()
+    monkeypatch.setattr(cli.Confirm, "ask", lambda *_args, **_kwargs: True)
+    workspace = Workspace(tmp_path)
+    assert _execute_tool(
+        workspace, "browser_navigate", {"url": "https://example.com"}, browser=browser
+    ).startswith("200")
+    assert _execute_tool(
+        workspace, "browser_click", {"selector": "button.submit"}, browser=browser
+    ) == "Clicked selector: button.submit"
+    assert browser.navigated == [("https://example.com", True)]
+    assert browser.clicked == [("button.submit", True)]
