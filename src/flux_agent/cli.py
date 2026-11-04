@@ -895,6 +895,28 @@ def plugin_add_manifest(path: Path = typer.Argument(..., exists=True, dir_okay=F
     console.print(f"Installed manifest [green]{destination}[/green]")
 
 
+@app.command("plugin-pack")
+def plugin_pack(
+    source: Path = typer.Argument(..., exists=True, file_okay=False, readable=True),
+    output: Path = typer.Argument(..., help="Output .fluxplugin archive path."),
+    private_key_file: Path = typer.Option(..., "--private-key-file", exists=True, dir_okay=False, readable=True),
+) -> None:
+    """Build an Ed25519-signed plugin package from a manifest directory."""
+    import os
+    import stat
+
+    from flux_agent.integrations.plugins import build_signed_package
+
+    try:
+        if os.name != "nt" and stat.S_IMODE(private_key_file.stat().st_mode) & 0o077:
+            raise ValueError("Private signing key file must not be accessible by group or others (chmod 600).")
+        private_key = private_key_file.read_text(encoding="ascii").strip()
+        destination = build_signed_package(source, output, private_key)
+    except (ValueError, OSError, RuntimeError, UnicodeDecodeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    console.print(f"Created signed plugin package [green]{destination}[/green]")
+
+
 @app.command("plugin-install-package")
 def plugin_install_package(
     package: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
