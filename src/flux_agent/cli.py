@@ -617,17 +617,20 @@ def workflow_worker(
         if mode not in {"chat", "plan", "build"}:
             raise ValueError("Workflow mode must be chat, plan, or build.")
         history = [{"role": "system", "content": SYSTEM_PROMPTS[mode]}]
-        try:
-            answer = _run_turn(provider, workspace, mode, history, task_text, config.max_tool_rounds)
-            console.print(Panel(answer, title=f"Workflow: {name}", border_style="green"))
-        except Exception as exc:
-            console.print(f"[red]Workflow '{name}' failed:[/red] {exc}")
+        answer = _run_turn(provider, workspace, mode, history, task_text, config.max_tool_rounds)
+        console.print(Panel(answer, title=f"Workflow: {name}", border_style="green"))
 
     console.print("Workflow worker online. Build actions ask for approval in this terminal. Press Ctrl+C to stop.")
     try:
         while True:
             try:
-                engine.run_due(execute)
+                engine.run_due(
+                    execute,
+                    on_error=lambda name, error, retrying: console.print(
+                        f"[yellow]Workflow '{name}' failed: {error}. "
+                        f"{'Retry scheduled.' if retrying else 'Retries exhausted.'}[/yellow]"
+                    ),
+                )
             except Exception as exc:
                 console.print(f"[red]Workflow error:[/red] {exc}")
             time.sleep(poll_interval)
