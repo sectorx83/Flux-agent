@@ -28,7 +28,7 @@ class ProviderSpec:
 
 MODEL_CAPABILITIES: dict[str, frozenset[str]] = {
     "openai/gpt-oss-120b": frozenset({"chat", "tool_calling"}),
-    "gemini-2.5-flash": frozenset({"chat", "tool_calling"}),
+    "gemini-2.5-flash": frozenset({"chat", "tool_calling", "vision"}),
     "gpt-oss-120b": frozenset({"chat", "tool_calling"}),
 }
 
