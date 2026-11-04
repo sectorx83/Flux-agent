@@ -204,14 +204,14 @@ def _execute_tool(
         from flux_agent.browser.automation import BrowserAutomation
 
         active_browser = browser or BrowserAutomation()
-        if active_browser._page is None:
-            active_browser.start()
         if name == "browser_navigate":
             url = arguments.get("url", "")
             console.print(Panel(url, title="Browser navigation approval", border_style="yellow"))
             if not Confirm.ask("Allow the browser to open this URL?"):
                 return "User declined browser navigation."
             return active_browser.navigate(url, approved=True)
+        if active_browser._page is None:
+            raise RuntimeError("Open a page with browser_navigate before reading or clicking.")
         if name == "browser_read":
             return active_browser.text(int(arguments.get("max_chars", 20_000)))
         selector = arguments.get("selector", "")
