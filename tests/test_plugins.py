@@ -181,3 +181,61 @@ def test_plugin_catalog_requires_https(tmp_path: Path):
         PluginRegistry(tmp_path / "registry").install_from_catalog(
             "http://plugins.example/catalog.json", "plugin", "1.0.0", "invalid"
         )
+
+
+def test_plugin_package_builder_creates_verifiable_archive(tmp_path: Path):
+    import base64
+    import json
+
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    from flux_agent.integrations.plugins import build_signed_package
+
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "manifest.json").write_text(
+        json.dumps({
+            "id": "built-plugin",
+            "name": "Built Plugin",
+            "version": "1.0.0",
+            "permissions": ["workspace.read"],
+        }),
+        encoding="utf-8",
+    )
+    (source / "README.md").write_text("Package metadata only.", encoding="utf-8")
+    private_key = Ed25519PrivateKey.generate()
+    private_bytes = private_key.private_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PrivateFormat.Raw,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+    public_bytes = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PublicFormat.Raw,
+    )
+    package = build_signed_package(
+        source,
+        tmp_path / "built.fluxplugin",
+        base64.b64encode(private_bytes).decode(),
+    )
+    installed = PluginRegistry(tmp_path / "registry").install_package(
+        package, base64.b64encode(public_bytes).decode()
+    )
+    assert installed.is_file()
+    assert installed.parent.name == "built-plugin"
+
+
+def test_plugin_package_builder_rejects_output_inside_source(tmp_path: Path):
+    import base64
+
+    pytest.importorskip("cryptography")
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    from flux_agent.integrations.plugins import build_signed_package
+
+    source = tmp_path / "source"
+    source.mkdir()
+    key = base64.b64encode(Ed25519PrivateKey.generate().private_bytes_raw()).decode()
+    with pytest.raises(ValueError, match="outside"):
+        build_signed_package(source, source / "output.fluxplugin", key)
