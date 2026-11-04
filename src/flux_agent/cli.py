@@ -390,3 +390,75 @@ def plugin_add_manifest(path: Path = typer.Argument(..., exists=True, dir_okay=F
     except (ValueError, OSError, json.JSONDecodeError) as exc:
         raise typer.BadParameter(str(exc)) from exc
     console.print(f"Installed manifest [green]{destination}[/green]")
+
+
+@app.command("remote-worker")
+def remote_worker(
+    poll_interval: float = typer.Option(2.0, min=0.2, max=60.0, help="Seconds between queue checks."),
+) -> None:
+    """Execute tasks submitted to this host's authenticated remote API."""
+    import time
+
+    from platformdirs import user_data_dir
+    from flux_agent.remote.tasks import RemoteTaskStore
+
+    _load_dotenv()
+    config = load_config()
+    workspace = Workspace(config.workspace)
+    provider = ProviderRouter(config.provider, config.fallback_providers, config.model, config.request_timeout)
+    store = RemoteTaskStore(Path(user_data_dir("flux-agent")) / "remote-tasks.sqlite3")
+    console.print("Remote worker online. Build tasks request approval in this terminal. Press Ctrl+C to stop.")
+    try:
+        while True:
+            task = store.claim_next()
+            if task is None:
+                time.sleep(poll_interval)
+                continue
+            try:
+                history = [{"role": "system", "content": SYSTEM_PROMPTS[task["mode"]]}]
+                answer = _run_turn(provider, workspace, task["mode"], history, task["prompt"], config.max_tool_rounds)
+                store.complete(task["id"], answer)
+                console.print(Panel(answer, title=f"Remote task #{task['id']} completed", border_style="green"))
+            except Exception as exc:
+                store.fail(task["id"], str(exc))
+                console.print(f"[red]Remote task #{task['id']} failed:[/red] {exc}")
+    except KeyboardInterrupt:
+        console.print("\\nRemote worker stopped.")
+
+
+@app.command("workflow-worker")
+def workflow_worker(
+    poll_interval: float = typer.Option(5.0, min=0.2, max=300.0, help="Seconds between schedule checks."),
+) -> None:
+    """Run due local workflows; each payload needs a task and optional mode."""
+    import time
+    from platformdirs import user_data_dir
+    from flux_agent.workflows.engine import WorkflowEngine
+
+    _load_dotenv()
+    config = load_config()
+    workspace = Workspace(config.workspace)
+    provider = ProviderRouter(config.provider, config.fallback_providers, config.model, config.request_timeout)
+    engine = WorkflowEngine(Path(user_data_dir("flux-agent")) / "workflows.sqlite3")
+
+    def execute(name: str, payload: dict) -> None:
+        task_text = payload.get("task")
+        mode = payload.get("mode", "plan")
+        if not isinstance(task_text, str) or not task_text.strip():
+            raise ValueError(f"Workflow '{name}' requires a non-empty 'task' field.")
+        if mode not in {"chat", "plan", "build"}:
+            raise ValueError("Workflow mode must be chat, plan, or build.")
+        history = [{"role": "system", "content": SYSTEM_PROMPTS[mode]}]
+        answer = _run_turn(provider, workspace, mode, history, task_text, config.max_tool_rounds)
+        console.print(Panel(answer, title=f"Workflow: {name}", border_style="green"))
+
+    console.print("Workflow worker online. Build actions ask for approval in this terminal. Press Ctrl+C to stop.")
+    try:
+        while True:
+            try:
+                engine.run_due(execute)
+            except Exception as exc:
+                console.print(f"[red]Workflow error:[/red] {exc}")
+            time.sleep(poll_interval)
+    except KeyboardInterrupt:
+        console.print("\\nWorkflow worker stopped.")

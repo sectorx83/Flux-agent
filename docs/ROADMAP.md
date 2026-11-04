@@ -1,31 +1,30 @@
 # Flux Agent roadmap
 
-## Foundation
-- [x] Python CLI and three primary modes
-- [x] Groq provider
-- [x] Workspace file tools and approval-gated shell
+## Completed foundations
+- [x] Python CLI with Chat, Plan, and Build modes
+- [x] Groq provider and optional Gemini, Cerebras, and OpenRouter adapters
+- [x] Workspace file tools and approval-gated shell commands
 - [x] Local configuration and CI baseline
-
-## Core platform expansion
-- [x] Provider adapter foundation and fallback router
-- [x] Permission policy primitives
-- [x] Persistent SQLite project memory with full-text search
-- [x] Bounded multi-agent task orchestration primitive
-- [x] Persistent workflow schedule store
-- [x] Plugin manifest discovery and CLI discovery
-- [x] MCP stdio JSON-RPC client foundation
+- [x] SQLite project notes with full-text search
+- [x] Bounded asynchronous multi-agent orchestration primitive
+- [x] Persistent one-shot and recurring workflow schedules
+- [x] Foreground workflow worker for due schedules
+- [x] Plugin manifest discovery and local CLI discovery
+- [x] MCP stdio client foundation
 - [x] Optional Playwright browser controller
 - [x] Approved deployment CLI adapters
-- [x] Authenticated remote API foundation and HTTPS client for Termux
+- [x] Authenticated HTTPS remote API, persistent task queue, and host-side worker
 
-## Still required before production
-- [ ] Integrate every subsystem into the interactive CLI and add end-to-end tests
-- [ ] True embedding-backed semantic project memory
-- [ ] Workflow worker daemon, event triggers, webhooks, retries, and notifications
-- [ ] Signed plugin packages, isolated plugin execution, and public marketplace
-- [ ] OAuth/API integrations for Discord, Telegram, GitHub, Google, Slack, and others
-- [ ] Remote pairing, revocation, task execution/streaming, TLS/VPN setup automation
-- [ ] Browser approval UX, download/upload controls, and hardened browser profiles
-- [ ] Sandboxed shell execution, audit logs, checkpoints, and rollback
-- [ ] Deployment verification, rollback, and environment-secret handling
-- [ ] Cross-platform packaging and security review
+## Remaining product work
+- [ ] Integrate multi-agent delegation into the interactive Build-mode tool loop
+- [ ] Add embedding-backed semantic memory as an optional provider, retaining local FTS fallback
+- [ ] Add workflow event triggers, webhooks, retry policies, and notifications
+- [ ] Build a signed plugin package format and public plugin catalog
+- [ ] Add official OAuth/API integrations for Discord, Telegram, GitHub, Google, Slack, and task tools
+- [ ] Add remote device pairing, per-device credentials, session revocation, and task streaming
+- [ ] Integrate browser actions into the model tool loop with clear approval prompts
+- [ ] Add deployment status verification, rollback orchestration, and environment management
+- [ ] Add provider capability-aware routing, usage tracking, and cost reporting
+- [ ] Finish cross-platform packaging, release automation, and broader integration tests
+
+Flux intentionally does not include an operating-system sandbox. It uses explicit approvals and workspace path checks, but tools run with the permissions of the launching user. Those controls are convenience and guardrails, not isolation.

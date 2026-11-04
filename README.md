@@ -1,34 +1,34 @@
 # Flux Agent
 
-**Flux Agent** is a local-first AI agent CLI for conversation, project planning, and hands-on development. Its long-term direction is a general automation and development platform with multi-agent orchestration, integrations, browser automation, deployment workflows, project memory, and secure remote access from Android Termux.
+**Flux Agent** is a local-first AI agent and automation CLI for conversation, planning, software development, and remote task execution. It is designed as a general-purpose tool for developers and everyday power users.
 
-## Current implementation
+## Features
 
-The current developer build includes:
+- **Three working modes:** Chat for conversation, Plan for structured plans, and Build for approved workspace edits and command execution.
+- **Multiple AI providers:** Groq is the default, with optional Gemini, Cerebras, and OpenRouter fallbacks.
+- **Tool execution:** list and read project files, write files after confirmation, and run shell commands after confirmation.
+- **Project memory:** persistent SQLite notes with full-text search, scoped to the active workspace.
+- **Multi-agent foundation:** bounded asynchronous task delegation for parallel specialist work.
+- **Workflow automation:** persistent one-shot and recurring schedules, with a foreground worker that executes due workflows.
+- **Remote access:** authenticated HTTPS task submission from another device, including Android Termux, backed by a persistent SQLite queue and a host-side worker.
+- **Browser automation:** optional Playwright controller with explicit approval for navigation and page interactions.
+- **Integration foundations:** MCP stdio client, local CLI discovery, and plugin manifest registry.
+- **Deployment adapters:** optional Vercel, Docker, and GitHub CLI deployment commands with explicit approval.
+- **Terminal experience:** Rich-powered interactive interface and one-shot CLI commands.
 
-- Interactive Chat, Plan, and Build modes.
-- Groq as the primary chat-completions provider, with optional Gemini, Cerebras, and OpenRouter adapters.
-- Workspace-confined file listing, reading, and writing, plus approval-gated shell execution.
-- Local TOML configuration and environment-variable overrides.
-- SQLite project notes with full-text search.
-- A bounded multi-agent orchestration primitive.
-- Persistent one-shot and interval workflow schedule records.
-- Plugin manifest discovery, local CLI discovery, and an MCP stdio client foundation.
-- Optional Playwright browser control and approved deployment CLI adapters.
-- An optional authenticated HTTPS remote API and Termux-friendly client.
-- Automated tests for the foundational subsystems.
-
-This is an early developer release, not a finished autonomous platform. Workflow workers, true embedding-backed semantic memory, a public signed plugin marketplace, OAuth integrations, complete remote task execution, hardened sandboxing, and production deployment verification remain unfinished. See [docs/ROADMAP.md](docs/ROADMAP.md).
+Some larger integrations remain extension points rather than finished connectors. Flux does not currently ship a public plugin marketplace, OAuth app suite, or embedding-based vector memory. See [docs/ROADMAP.md](docs/ROADMAP.md) for the exact status.
 
 ## Quick start
 
 Requires Python 3.11 or newer.
 
 ```bash
+git clone https://github.com/sectorx83/Flux-agent.git
+cd Flux-agent
 python -m venv .venv
 # Linux/macOS
 source .venv/bin/activate
-# Windows PowerShell: .venv\Scripts\Activate.ps1
+# Windows PowerShell: .venv\\Scripts\\Activate.ps1
 python -m pip install -e ".[dev]"
 ```
 
@@ -47,33 +47,33 @@ Start Flux:
 flux
 ```
 
-Run `flux doctor` to inspect the local setup.
+## Interactive commands
 
-## Modes
-
-- `/chat` — normal conversation.
-- `/plan` — create a plan without changing files.
+- `/chat` — conversation mode.
+- `/plan` — plan without changing files.
 - `/build` — use workspace tools; file writes and shell commands require confirmation.
+- `/mode`, `/tools`, `/model`, `/settings`, `/help`, `/exit` — inspect or control the session.
 
-Natural language is the normal interface. Useful commands include:
+Useful CLI commands:
 
 ```bash
-flux init .
 flux doctor
+flux init .
 flux integrations
 flux plugins
 flux memory-add "The project uses Python and pytest"
 flux memory-search "pytest"
-flux workflow-add "nightly-check" '{"task":"run tests"}' "2026-11-05T02:00:00+00:00"
+flux workflow-add "nightly-check" '{"task":"run the test suite","mode":"plan"}' "2026-11-05T02:00:00+00:00"
 flux workflow-list
-flux workflow-cancel 1
+flux workflow-worker
+flux remote-worker
 ```
 
-A workflow schedule is stored locally; a scheduler worker is still required to execute it.
+A workflow payload contains a `task` string and an optional `mode` (`chat`, `plan`, or `build`). Run `flux workflow-worker` in a terminal to process due schedules. Build-mode actions ask for approval in that terminal.
 
-## Provider configuration
+## Providers
 
-Set optional fallback providers in your TOML configuration:
+Configure the primary provider and optional fallbacks in your TOML file:
 
 ```toml
 [flux]
@@ -85,21 +85,63 @@ max_tool_rounds = 8
 fallback_providers = ["gemini", "cerebras", "openrouter"]
 ```
 
-Or use `FLUX_FALLBACK_PROVIDERS=gemini,cerebras,openrouter`. Provider keys are `GROQ_API_KEY`, `GEMINI_API_KEY`, `CEREBRAS_API_KEY`, and `OPENROUTER_API_KEY`. Only configure providers you actually use. Never commit keys.
+Environment keys: `GROQ_API_KEY`, `GEMINI_API_KEY`, `CEREBRAS_API_KEY`, and `OPENROUTER_API_KEY`. You only need keys for providers you use. Never commit API keys.
 
-## Optional features
+## Browser and deployment extras
 
-- Browser: `pip install -e ".[browser]"` then `playwright install chromium`.
-- Remote API: `pip install -e ".[remote]"`.
-- Termux remote client: configure `FLUX_REMOTE_URL` with an HTTPS endpoint and `FLUX_REMOTE_TOKEN` with a high-entropy token, then use `flux remote-submit "Check the build" --mode plan` and `flux remote-tasks`.
+```bash
+python -m pip install -e ".[browser]"
+playwright install chromium
+```
 
-The current remote API queues requests for inspection. It does not yet execute them through a background agent worker. Keep the host behind a private VPN or an HTTPS reverse proxy; never expose it directly to the public internet.
+Browser automation can also be used as a Python API via `BrowserAutomation`. Deployment adapters use installed `vercel`, `docker`, or `gh` CLIs and require explicit approval when called from code.
 
-See [SETUP.md](SETUP.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and [docs/ROADMAP.md](docs/ROADMAP.md).
+## Remote access and Termux
 
-## Safety
+Install the remote extra on the host:
 
-Build-mode file operations are restricted to the configured workspace. File writes and shell commands require interactive confirmation. Shell commands run with the permissions of the current operating-system user; approval is not a sandbox. Plugin discovery reads manifests but does not execute plugin code. MCP server commands are executable programs and must only be configured from trusted sources.
+```bash
+python -m pip install -e ".[remote]"
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+export FLUX_REMOTE_TOKEN="paste-generated-token"
+uvicorn flux_agent.remote.server:create_app --factory --host 127.0.0.1 --port 8765
+```
+
+In a second terminal on the host, run:
+
+```bash
+flux remote-worker
+```
+
+On Termux or another client, set `FLUX_REMOTE_URL` to the host's HTTPS URL and `FLUX_REMOTE_TOKEN` to the same high-entropy token:
+
+```bash
+flux remote-submit "Review the project and suggest fixes" --mode plan
+flux remote-tasks
+```
+
+The API and worker share the persistent database at the platform data directory. Set `FLUX_REMOTE_DB` on the API and use the same database path for the worker only if you need a custom location. Keep the API on loopback behind a private VPN or a correctly configured HTTPS reverse proxy. Do not expose the bearer-token API directly to the public internet.
+
+## Tests
+
+```bash
+python -m pip install -e ".[dev]"
+ruff check .
+pytest
+```
+
+## Current limitations
+
+- Project memory uses SQLite full-text search, not embeddings or a vector database.
+- Multi-agent orchestration exists as a reusable primitive; it is not yet the default Build-mode planner.
+- Plugin support discovers and installs manifests only. It is not a public marketplace and does not execute third-party plugin code.
+- MCP is a stdio client foundation; OAuth integrations for chat platforms, Google services, and project management tools are not bundled yet.
+- Remote tasks persist across API restarts and are executed by a separate host worker. Device pairing, per-device identities, and session revocation are not implemented yet.
+- Workflow schedules persist locally and require the foreground worker to run. Event/webhook triggers and notification delivery are not included yet.
+
+## Safety model
+
+Flux is not a sandbox. It runs with the permissions of the operating-system account that launches it. Workspace file tools resolve paths under the configured workspace, and file writes, shell commands, browser actions, and deployments require approval in the relevant interactive flow. These approval prompts are not an operating-system security boundary. Only install integrations and configure MCP servers from sources you trust. Keep credentials in environment variables or a local untracked `.env` file.
 
 ## License
 

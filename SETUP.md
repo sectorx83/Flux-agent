@@ -65,7 +65,7 @@ export FLUX_REMOTE_TOKEN="paste-generated-token"
 uvicorn flux_agent.remote.server:create_app --factory --host 127.0.0.1 --port 8765
 ```
 
-Keep the host bound to loopback unless it is protected by a private VPN or a properly configured HTTPS reverse proxy. Never expose the bearer-token API directly to the public internet. The current API queues requests for inspection; it does not yet execute them through an agent worker.
+Keep the host bound to loopback unless it is protected by a private VPN or a properly configured HTTPS reverse proxy. Never expose the bearer-token API directly to the public internet. The API stores submitted tasks in SQLite. Run `flux remote-worker` in a second host terminal to execute queued tasks. Build-mode writes and commands request approval in that worker terminal.
 
 On Termux, install Flux and configure `FLUX_REMOTE_URL` with an HTTPS URL and `FLUX_REMOTE_TOKEN` with the paired token. Then use:
 
@@ -73,6 +73,8 @@ On Termux, install Flux and configure `FLUX_REMOTE_URL` with an HTTPS URL and `F
 flux remote-submit "Check my build" --mode plan
 flux remote-tasks
 ```
+
+Run `flux workflow-worker` in a terminal to execute due local schedules. Workflow payloads use a `task` field and optional `mode` (`chat`, `plan`, or `build`).
 
 ## Provider fallback
 
