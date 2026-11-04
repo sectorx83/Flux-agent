@@ -45,6 +45,8 @@ class CompatibleProvider:
         self.model = model or os.getenv(f"FLUX_{spec.name.upper()}_MODEL") or spec.default_model
         self.timeout = timeout
         self.api_key = os.getenv(spec.key_env, "").strip()
+        self.last_usage: dict[str, Any] = {}
+        self.last_model = self.model
 
     def chat(
         self, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None = None
@@ -74,7 +76,10 @@ class CompatibleProvider:
                 detail = response.text
             raise ProviderError(f"{self.spec.name} HTTP {response.status_code}: {detail}")
         try:
-            return response.json()["choices"][0]["message"]
+            payload = response.json()
+            self.last_usage = payload.get("usage") or {}
+            self.last_model = payload.get("model") or self.model
+            return payload["choices"][0]["message"]
         except (ValueError, KeyError, IndexError, TypeError) as exc:
             raise ProviderError(f"{self.spec.name} returned an invalid chat response.") from exc
 
@@ -98,6 +103,22 @@ class ProviderRouter:
                 provider = CompatibleProvider(spec, selected_model, timeout)
             self.providers.append((name, provider))
         self.active_provider = primary
+        self._usage_store = None
+
+    def _record_usage(self, provider: str, model: str, usage: dict[str, Any]) -> None:
+        try:
+            if self._usage_store is None:
+                from platformdirs import user_data_dir
+                from pathlib import Path
+
+                from flux_agent.usage.store import UsageStore
+
+                path = Path(user_data_dir("flux-agent")) / "usage.sqlite3"
+                self._usage_store = UsageStore(path)
+            self._usage_store.record(provider, model, usage)
+        except (OSError, ValueError):
+            # Usage accounting must never turn a successful model response into a failed turn.
+            return
 
     def chat(
         self, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None = None
@@ -107,6 +128,9 @@ class ProviderRouter:
             try:
                 result = provider.chat(messages, tools)
                 self.active_provider = name
+                usage = getattr(provider, "last_usage", {})
+                if usage:
+                    self._record_usage(name, getattr(provider, "last_model", ""), usage)
                 return result
             except ProviderError as exc:
                 failures.append(str(exc))
