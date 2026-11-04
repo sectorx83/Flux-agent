@@ -91,11 +91,38 @@ TOOL_DEFINITIONS = [
             }
         }
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "browser_navigate",
+            "description": "Open an HTTP or HTTPS page in the approved browser session.",
+            "parameters": {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "browser_read",
+            "description": "Read visible text from the current browser page.",
+            "parameters": {"type": "object", "properties": {"max_chars": {"type": "integer"}}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "browser_click",
+            "description": "Click the first element matching a CSS selector in the current page.",
+            "parameters": {"type": "object", "properties": {"selector": {"type": "string"}}, "required": ["selector"]},
+        },
+    },
 ]
+
+SPECIALIST_TOOL_DEFINITIONS = TOOL_DEFINITIONS[:2]
 
 
 def _execute_tool(
-    workspace: Workspace, name: str, arguments: dict[str, Any], provider: ChatProvider | None = None
+    workspace: Workspace, name: str, arguments: dict[str, Any], provider: ChatProvider | None = None,
+    browser: Any | None = None,
 ) -> str:
     if name == "list_files":
         return json.dumps(workspace.list_files(arguments.get("path", ".")))
@@ -149,14 +176,50 @@ def _execute_tool(
                 },
                 {"role": "user", "content": task.instruction},
             ]
-            response = await asyncio.to_thread(provider.chat, messages)
-            return str(response.get("content") or "(No text response.)")
+            for _ in range(4):
+                response = await asyncio.to_thread(provider.chat, messages, SPECIALIST_TOOL_DEFINITIONS)
+                messages.append(response)
+                calls = response.get("tool_calls") or []
+                if not calls:
+                    return str(response.get("content") or "(No text response.)")
+                for call in calls:
+                    tool_name = call["function"]["name"]
+                    if tool_name not in {"list_files", "read_file"}:
+                        result = "Specialists may only inspect workspace files; write and execution tools are unavailable."
+                    else:
+                        try:
+                            tool_args = json.loads(call["function"].get("arguments") or "{}")
+                            result = await asyncio.to_thread(_execute_tool, workspace, tool_name, tool_args)
+                        except (WorkspaceError, OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
+                            result = f"Tool error: {exc}"
+                    messages.append({"role": "tool", "tool_call_id": call["id"], "content": result})
+            return "Specialist stopped after reaching its tool-call limit."
 
         results = asyncio.run(MultiAgentOrchestrator(run_agent, max_parallel=min(4, len(tasks))).run(tasks))
         return json.dumps([
             {"name": item.name, "output": item.output, "error": item.error}
             for item in results
         ])
+    if name in {"browser_navigate", "browser_read", "browser_click"}:
+        from flux_agent.browser.automation import BrowserAutomation
+
+        active_browser = browser or BrowserAutomation()
+        if active_browser._page is None:
+            active_browser.start()
+        if name == "browser_navigate":
+            url = arguments.get("url", "")
+            console.print(Panel(url, title="Browser navigation approval", border_style="yellow"))
+            if not Confirm.ask("Allow the browser to open this URL?"):
+                return "User declined browser navigation."
+            return active_browser.navigate(url, approved=True)
+        if name == "browser_read":
+            return active_browser.text(int(arguments.get("max_chars", 20_000)))
+        selector = arguments.get("selector", "")
+        console.print(Panel(selector, title="Browser interaction approval", border_style="yellow"))
+        if not Confirm.ask("Allow this browser click?"):
+            return "User declined browser interaction."
+        active_browser.click(selector, approved=True)
+        return f"Clicked selector: {selector}"
     raise ValueError(f"Unknown tool: {name}")
 
 
@@ -180,7 +243,13 @@ def _run_turn(
     history: list[dict[str, Any]],
     text: str,
     max_rounds: int,
+    browser: Any | None = None,
 ) -> str:
+    owns_browser = browser is None
+    if browser is None:
+        from flux_agent.browser.automation import BrowserAutomation
+
+        browser = BrowserAutomation()
     history.append({"role": "user", "content": text})
     for _ in range(max_rounds):
         message = provider.chat(history, TOOL_DEFINITIONS if mode == "build" else None)
@@ -192,10 +261,12 @@ def _run_turn(
             name = call["function"]["name"]
             arguments = json.loads(call["function"].get("arguments") or "{}")
             try:
-                result = _execute_tool(workspace, name, arguments, provider)
+                result = _execute_tool(workspace, name, arguments, provider, browser)
             except (WorkspaceError, OSError, ValueError, KeyError) as exc:
                 result = f"Tool error: {exc}"
             history.append({"role": "tool", "tool_call_id": call["id"], "content": result})
+    if owns_browser:
+        browser.close()
     raise ProviderError("Maximum tool-call rounds reached. The task was stopped to prevent runaway execution.")
 
 
@@ -206,6 +277,9 @@ def _interactive() -> None:
     provider = ProviderRouter(config.provider, config.fallback_providers, config.model, config.request_timeout)
     mode = "chat"
     history: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPTS[mode]}]
+    from flux_agent.browser.automation import BrowserAutomation
+
+    browser = BrowserAutomation()
     console.print(
         Panel.fit(
             f"[bold cyan]FLUX AGENT[/bold cyan] [dim]v{__version__}[/dim]\n[white]Local-first AI workspace[/white]",
@@ -239,7 +313,7 @@ def _interactive() -> None:
             console.print(table)
             continue
         if command == "/tools":
-            console.print("Build mode tools: list_files, read_file, write_file, run_command")
+            console.print("Build mode tools: list_files, read_file, write_file, run_command, delegate_tasks, browser_navigate, browser_read, browser_click")
             continue
         if command == "/model":
             console.print(f"Provider: {provider.active_provider} · Model: {config.model}")
@@ -255,12 +329,13 @@ def _interactive() -> None:
             continue
         try:
             with console.status("Flux is thinking...", spinner="dots"):
-                answer = _run_turn(provider, workspace, mode, history, text, config.max_tool_rounds)
+                answer = _run_turn(provider, workspace, mode, history, text, config.max_tool_rounds, browser)
             console.print(Panel(answer, title="Flux", border_style="green"))
         except ProviderError as exc:
             console.print(f"[red]Provider error:[/red] {exc}")
         except (WorkspaceError, OSError, ValueError, json.JSONDecodeError) as exc:
             console.print(f"[red]Execution error:[/red] {exc}")
+    browser.close()
 
 
 @app.callback(invoke_without_command=True)
