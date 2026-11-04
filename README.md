@@ -8,7 +8,7 @@
 - **Multiple AI providers:** Groq is the default, with optional Gemini, Cerebras, and OpenRouter fallbacks.
 - **Tool execution:** list and read project files, write files after confirmation, and run shell commands after confirmation.
 - **Project memory:** persistent SQLite notes with full-text search, scoped to the active workspace.
-- **Multi-agent foundation:** bounded asynchronous task delegation for parallel specialist work.
+- **Multi-agent Build tool:** delegate up to four independent subtasks to parallel specialist agents and collect their results.
 - **Workflow automation:** persistent one-shot and recurring schedules, with a foreground worker that executes due workflows.
 - **Remote access:** authenticated HTTPS task submission from another device, including Android Termux, backed by a persistent SQLite queue and a host-side worker.
 - **Browser automation:** optional Playwright controller with explicit approval for navigation and page interactions.
@@ -133,7 +133,7 @@ pytest
 ## Current limitations
 
 - Project memory uses SQLite full-text search, not embeddings or a vector database.
-- Multi-agent orchestration exists as a reusable primitive; it is not yet the default Build-mode planner.
+- Multi-agent delegation is available as an explicit Build-mode tool; automatic task decomposition and shared specialist tool access are not included yet.
 - Plugin support discovers and installs manifests only. It is not a public marketplace and does not execute third-party plugin code.
 - MCP is a stdio client foundation; OAuth integrations for chat platforms, Google services, and project management tools are not bundled yet.
 - Remote tasks persist across API restarts and are executed by a separate host worker. Device pairing, per-device identities, and session revocation are not implemented yet.

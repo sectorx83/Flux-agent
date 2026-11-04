@@ -65,10 +65,38 @@ TOOL_DEFINITIONS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "delegate_tasks",
+            "description": "Delegate independent subtasks to specialist agents and collect their results.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "tasks": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 4,
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string"},
+                                "instruction": {"type": "string"}
+                            },
+                            "required": ["name", "instruction"]
+                        }
+                    }
+                },
+                "required": ["tasks"]
+            }
+        }
+    },
 ]
 
 
-def _execute_tool(workspace: Workspace, name: str, arguments: dict[str, Any]) -> str:
+def _execute_tool(
+    workspace: Workspace, name: str, arguments: dict[str, Any], provider: ChatProvider | None = None
+) -> str:
     if name == "list_files":
         return json.dumps(workspace.list_files(arguments.get("path", ".")))
     if name == "read_file":
@@ -88,6 +116,41 @@ def _execute_tool(workspace: Workspace, name: str, arguments: dict[str, Any]) ->
         except subprocess.TimeoutExpired:
             return "Command timed out after 60 seconds."
         return json.dumps({"returncode": result.returncode, "stdout": result.stdout, "stderr": result.stderr})
+    if name == "delegate_tasks":
+        if provider is None:
+            raise ValueError("Multi-agent delegation requires an active provider.")
+        import asyncio
+
+        from flux_agent.agents.orchestrator import AgentTask, MultiAgentOrchestrator
+
+        raw_tasks = arguments.get("tasks")
+        if not isinstance(raw_tasks, list) or not 1 <= len(raw_tasks) <= 4:
+            raise ValueError("Provide between one and four delegated tasks.")
+        tasks = []
+        for item in raw_tasks:
+            if not isinstance(item, dict):
+                raise ValueError("Each delegated task must be an object.")
+            name_value = item.get("name")
+            instruction = item.get("instruction")
+            if not isinstance(name_value, str) or not name_value.strip():
+                raise ValueError("Each delegated task needs a non-empty name.")
+            if not isinstance(instruction, str) or not instruction.strip():
+                raise ValueError("Each delegated task needs a non-empty instruction.")
+            tasks.append(AgentTask(name_value.strip(), instruction.strip()))
+
+        async def run_agent(task: AgentTask) -> str:
+            messages = [
+                {"role": "system", "content": "You are a specialist agent. Complete only the assigned subtask. Be concise and report evidence and limitations."},
+                {"role": "user", "content": task.instruction},
+            ]
+            response = await asyncio.to_thread(provider.chat, messages)
+            return str(response.get("content") or "(No text response.)")
+
+        results = asyncio.run(MultiAgentOrchestrator(run_agent, max_parallel=min(4, len(tasks))).run(tasks))
+        return json.dumps([
+            {"name": item.name, "output": item.output, "error": item.error}
+            for item in results
+        ])
     raise ValueError(f"Unknown tool: {name}")
 
 
@@ -123,7 +186,7 @@ def _run_turn(
             name = call["function"]["name"]
             arguments = json.loads(call["function"].get("arguments") or "{}")
             try:
-                result = _execute_tool(workspace, name, arguments)
+                result = _execute_tool(workspace, name, arguments, provider)
             except (WorkspaceError, OSError, ValueError, KeyError) as exc:
                 result = f"Tool error: {exc}"
             history.append({"role": "tool", "tool_call_id": call["id"], "content": result})

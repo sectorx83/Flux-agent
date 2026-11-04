@@ -16,7 +16,8 @@
 - [x] Authenticated HTTPS remote API, persistent task queue, and host-side worker
 
 ## Remaining product work
-- [ ] Integrate multi-agent delegation into the interactive Build-mode tool loop
+- [x] Integrate explicit multi-agent delegation into the interactive Build-mode tool loop
+- [ ] Add automatic task decomposition and shared specialist tool access
 - [ ] Add embedding-backed semantic memory as an optional provider, retaining local FTS fallback
 - [ ] Add workflow event triggers, webhooks, retry policies, and notifications
 - [ ] Build a signed plugin package format and public plugin catalog
