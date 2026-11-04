@@ -84,7 +84,12 @@ class WorkflowEngine:
             )
             return cursor.rowcount
 
-    def run_due(self, handler: Callable[[str, dict], None], now: datetime | None = None) -> int:
+    def run_due(
+        self,
+        handler: Callable[[str, dict], None],
+        now: datetime | None = None,
+        on_error: Callable[[str, Exception, bool], None] | None = None,
+    ) -> int:
         current = (now or datetime.now(UTC)).astimezone(UTC)
         completed = 0
         with sqlite3.connect(self.path) as db:
@@ -99,7 +104,8 @@ class WorkflowEngine:
                 except Exception as exc:
                     attempts = int(item["attempts"]) + 1
                     error = str(exc)[:4000]
-                    if attempts <= int(item["max_retries"]):
+                    retrying = attempts <= int(item["max_retries"])
+                    if retrying:
                         retry_at = current + timedelta(seconds=int(item["retry_delay_seconds"]))
                         db.execute(
                             "UPDATE workflows SET attempts=?, last_error=?, run_at=? WHERE id=?",
@@ -110,6 +116,8 @@ class WorkflowEngine:
                             "UPDATE workflows SET attempts=?, last_error=?, enabled=0 WHERE id=?",
                             (attempts, error, item["id"]),
                         )
+                    if on_error is not None:
+                        on_error(item["name"], exc, retrying)
                     continue
                 if item["event_name"]:
                     db.execute(
