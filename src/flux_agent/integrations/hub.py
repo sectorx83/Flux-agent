@@ -28,7 +28,7 @@ class IntegrationSpec:
 SPECS = {
     "github": IntegrationSpec("github", "GITHUB_TOKEN", "https://api.github.com/user"),
     "slack": IntegrationSpec("slack", "SLACK_BOT_TOKEN", "https://slack.com/api/auth.test"),
-    "discord": IntegrationSpec("discord", "DISCORD_BOT_TOKEN", "https://discord.com/api/users/@me"),
+    "discord": IntegrationSpec("discord", "DISCORD_BOT_TOKEN", "https://discord.com/api/users/@me", "Bot"),
     "telegram": IntegrationSpec("telegram", "TELEGRAM_BOT_TOKEN", "https://api.telegram.org"),
     "google": IntegrationSpec("google", "GOOGLE_ACCESS_TOKEN", "https://www.googleapis.com/oauth2/v3/userinfo"),
     "notion": IntegrationSpec("notion", "NOTION_TOKEN", "https://api.notion.com/v1/users/me"),
@@ -98,7 +98,7 @@ class IntegrationHub:
         url = spec.test_url
         if service == "telegram":
             url = f"https://api.telegram.org/bot{self._token(service)}/getMe"
-            token = self._token(service)
+            self._token(service)
             try:
                 response = httpx.get(url, timeout=self.timeout)
                 response.raise_for_status()
@@ -178,6 +178,17 @@ class IntegrationHub:
     def create_notion_task(self, database_id: str, title: str, description: str = "") -> dict[str, Any]:
         if not database_id.strip() or not title.strip():
             raise ValueError("Notion database ID and task title are required.")
+        database_id = quote(database_id, safe="")
+        database = self._request(
+            "notion", "GET", f"https://api.notion.com/v1/databases/{database_id}"
+        )
+        title_property = next(
+            (name for name, value in database.get("properties", {}).items()
+             if value.get("type") == "title"),
+            None,
+        )
+        if title_property is None:
+            raise IntegrationError("The selected Notion database has no title property.")
         children = []
         if description.strip():
             children.append(
@@ -189,7 +200,7 @@ class IntegrationHub:
             "notion", "POST", "https://api.notion.com/v1/pages",
             json_body={
                 "parent": {"database_id": database_id},
-                "properties": {"Name": {"title": [{"text": {"content": title[:2000]}}]}},
+                "properties": {title_property: {"title": [{"text": {"content": title[:2000]}}]}},
                 "children": children,
             },
         )
