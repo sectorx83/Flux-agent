@@ -143,7 +143,7 @@ def create_app():
 
     @app.post("/workflows/events/{event_name}")
     def trigger_workflows(event_name: str, authorization: str | None = Header(default=None)):
-        authenticate(authorization)
+        authorize_admin(authorization)
         from flux_agent.workflows.engine import WorkflowEngine
 
         engine = WorkflowEngine(data_dir / "workflows.sqlite3")
