@@ -54,7 +54,6 @@ def test_event_workflow_waits_for_trigger_and_can_be_reused(tmp_path: Path):
     assert engine.list()[0]["pending_count"] == 0
 
 
-
 def test_existing_workflow_database_is_migrated(tmp_path: Path):
     import sqlite3
 
