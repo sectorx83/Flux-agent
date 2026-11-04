@@ -116,7 +116,7 @@ The catalog and package signatures must verify with the trusted key. The catalog
 
 ## Deployment operations
 
-Use `flux deployment-status PROVIDER TARGET` to inspect a Vercel deployment URL, Docker container ID, or GitHub Actions run ID. `flux deployment-rollback DEPLOYMENT_URL` requests an explicit confirmation and invokes Vercel rollback for the exact deployment. Docker and GitHub workflow rollback are not currently implemented.
+Use `flux deployment-status PROVIDER TARGET` to inspect a Vercel deployment URL, Docker container ID, or GitHub Actions run ID. `flux deployment-rollback DEPLOYMENT_URL` requests explicit confirmation and invokes Vercel rollback for the exact deployment. For Docker Swarm, use `flux deployment-rollback SERVICE_NAME --provider docker-swarm`. Generic Docker container rollback and GitHub Actions rollback are not implemented.
 
 ## Provider fallback
 
