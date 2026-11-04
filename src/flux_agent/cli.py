@@ -140,7 +140,10 @@ def _execute_tool(
 
         async def run_agent(task: AgentTask) -> str:
             messages = [
-                {"role": "system", "content": "You are a specialist agent. Complete only the assigned subtask. Be concise and report evidence and limitations."},
+                {
+                    "role": "system",
+                    "content": "You are a specialist agent. Complete only the assigned subtask. Be concise and report evidence and limitations.",
+                },
                 {"role": "user", "content": task.instruction},
             ]
             response = await asyncio.to_thread(provider.chat, messages)
