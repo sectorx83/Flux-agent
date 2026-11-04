@@ -17,6 +17,8 @@ class GroqProvider:
         self.model = model
         self.timeout = timeout
         self.api_key = os.getenv("GROQ_API_KEY", "").strip()
+        self.last_usage: dict[str, Any] = {}
+        self.last_model = model
 
     def chat(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         if not self.api_key:
@@ -48,6 +50,9 @@ class GroqProvider:
                 detail = response.text
             raise ProviderError(f"Groq returned HTTP {response.status_code}: {detail}")
         try:
-            return response.json()["choices"][0]["message"]
+            payload = response.json()
+            self.last_usage = payload.get("usage") or {}
+            self.last_model = payload.get("model") or self.model
+            return payload["choices"][0]["message"]
         except (ValueError, KeyError, IndexError, TypeError) as exc:
             raise ProviderError("Groq returned an unexpected response format.") from exc
