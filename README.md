@@ -63,13 +63,15 @@ flux integrations
 flux plugins
 flux memory-add "The project uses Python and pytest"
 flux memory-search "pytest"
-flux workflow-add "nightly-check" '{"task":"run the test suite","mode":"plan"}' "2026-11-05T02:00:00+00:00"
+flux workflow-add "nightly-check" '{"task":"run the test suite","mode":"plan"}' "2026-11-05T02:00:00+00:00" --max-retries 3 --retry-delay 30
+flux workflow-add "on-push" '{"task":"inspect recent changes","mode":"plan"}' "2026-11-05T02:00:00+00:00" --event-name git.push
+flux workflow-trigger git.push
 flux workflow-list
 flux workflow-worker
 flux remote-worker
 ```
 
-A workflow payload contains a `task` string and an optional `mode` (`chat`, `plan`, or `build`). Run `flux workflow-worker` in a terminal to process due schedules. Build-mode actions ask for approval in that terminal.
+A workflow payload contains a `task` string and an optional `mode` (`chat`, `plan`, or `build`). Run `flux workflow-worker` in a terminal to process due schedules. Workflows support bounded retries, retry-delay settings, named event triggers, and worker-console success/failure notifications. Trigger events locally with `flux workflow-trigger EVENT_NAME`, or send an authenticated `POST /workflows/events/{event_name}` request to the remote API using the same bearer token. Build-mode actions ask for approval in the worker terminal.
 
 ## Providers
 
@@ -133,11 +135,11 @@ pytest
 ## Current limitations
 
 - Project memory uses SQLite full-text search, not embeddings or a vector database.
-- Multi-agent delegation is available as an explicit Build-mode tool; automatic task decomposition and shared specialist tool access are not included yet.
+- Build mode automatically decomposes complex independent work into bounded specialist tasks when appropriate. Specialists share read-only workspace file inspection tools; write and shell capabilities remain with the primary agent.
 - Plugin support discovers and installs manifests only. It is not a public marketplace and does not execute third-party plugin code.
 - MCP is a stdio client foundation; OAuth integrations for chat platforms, Google services, and project management tools are not bundled yet.
 - Remote tasks persist across API restarts and are executed by a separate host worker. Device pairing, per-device identities, and session revocation are not implemented yet.
-- Workflow schedules persist locally and require the foreground worker to run. Event/webhook triggers and notification delivery are not included yet.
+- Workflow schedules persist locally and require the foreground worker to run. They support bounded retries, named event triggers, an authenticated webhook endpoint, and worker-console notifications.
 
 ## Safety model
 
