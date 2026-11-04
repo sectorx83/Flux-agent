@@ -128,3 +128,52 @@ def test_browser_navigation_and_click_use_approved_actions(tmp_path: Path, monke
     ) == "Clicked selector: button.submit"
     assert browser.navigated == [("https://example.com", True)]
     assert browser.clicked == [("button.submit", True)]
+
+
+
+def test_external_integration_action_requires_confirmation(tmp_path: Path, monkeypatch):
+    from flux_agent import cli
+
+    calls = []
+
+    class FakeHub:
+        def send_message(self, service, target, content):
+            calls.append((service, target, content))
+            return {"service": service, "message_id": "test-id"}
+
+    monkeypatch.setattr("flux_agent.integrations.hub.IntegrationHub", FakeHub)
+    monkeypatch.setattr(cli.Confirm, "ask", lambda *_args, **_kwargs: False)
+    result = _execute_tool(
+        Workspace(tmp_path),
+        "integration_action",
+        {
+            "action": "send_message", "service": "slack",
+            "target": "C123", "content": "Hello",
+        },
+    )
+    assert result == "User declined the external integration action."
+    assert calls == []
+
+
+def test_external_integration_action_dispatches_after_approval(tmp_path: Path, monkeypatch):
+    from flux_agent import cli
+
+    calls = []
+
+    class FakeHub:
+        def create_github_issue(self, repository, title, body):
+            calls.append((repository, title, body))
+            return {"service": "github", "number": 5}
+
+    monkeypatch.setattr("flux_agent.integrations.hub.IntegrationHub", FakeHub)
+    monkeypatch.setattr(cli.Confirm, "ask", lambda *_args, **_kwargs: True)
+    result = _execute_tool(
+        Workspace(tmp_path),
+        "integration_action",
+        {
+            "action": "create_github_issue", "service": "github",
+            "target": "org/repo", "title": "Bug", "content": "Details",
+        },
+    )
+    assert '"number": 5' in result
+    assert calls == [("org/repo", "Bug", "Details")]
