@@ -164,7 +164,7 @@ def test_signed_catalog_downloads_exact_package_and_verifies_both_signatures(tmp
             return Response(body, catalog)
         return Response(package_bytes)
 
-    monkeypatch.setattr("flux_agent.integrations.plugins.httpx.get", fake_get, raising=False)
+    monkeypatch.setattr("httpx.get", fake_get)
     destination = PluginRegistry(tmp_path / "registry").install_from_catalog(
         "https://plugins.example/catalog.json",
         manifest["id"],
