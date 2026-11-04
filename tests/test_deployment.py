@@ -22,7 +22,9 @@ def test_vercel_deployment_status_parses_ready_state(tmp_path: Path, monkeypatch
     monkeypatch.setattr("flux_agent.deployment.engine.shutil.which", lambda _binary: "/usr/bin/vercel")
     monkeypatch.setattr(
         "flux_agent.deployment.engine.subprocess.run",
-        lambda *_args, **_kwargs: SimpleNamespace(returncode=0, stdout='{"readyState":"READY","url":"example.vercel.app"}', stderr=""),
+        lambda *_args, **_kwargs: SimpleNamespace(
+            returncode=0, stdout='{"readyState":"READY","url":"example.vercel.app"}', stderr=""
+        ),
     )
     status = DeploymentEngine().status("vercel", "example.vercel.app", tmp_path)
     assert status.state == "READY"
