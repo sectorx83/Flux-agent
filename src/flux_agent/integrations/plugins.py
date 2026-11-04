@@ -73,6 +73,79 @@ class PluginRegistry:
         self.discover()
         return destination
 
+    def install_from_catalog(self, catalog_url: str, plugin_id: str, version: str, public_key: str) -> Path:
+        """Install a package listed in a signed HTTPS catalog, then verify its package signature."""
+        import tempfile
+        from urllib.parse import urlparse
+
+        import httpx
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
+        parsed_url = urlparse(catalog_url)
+        if parsed_url.scheme != "https" or not parsed_url.hostname or parsed_url.username or parsed_url.password:
+            raise ValueError("Plugin catalog URL must be an HTTPS URL without embedded credentials.")
+        try:
+            key_bytes = base64.b64decode(public_key, validate=True)
+            if len(key_bytes) != 32:
+                raise ValueError("Ed25519 public key must decode to exactly 32 bytes.")
+            verifier = Ed25519PublicKey.from_public_bytes(key_bytes)
+        except (ValueError, TypeError) as exc:
+            raise ValueError("Invalid base64 Ed25519 public key.") from exc
+
+        try:
+            response = httpx.get(catalog_url, timeout=20, follow_redirects=False)
+            response.raise_for_status()
+            if len(response.content) > 1024 * 1024:
+                raise ValueError("Plugin catalog exceeds the 1 MiB size limit.")
+            catalog = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise ValueError(f"Unable to retrieve plugin catalog: {exc}") from exc
+        if not isinstance(catalog, dict) or catalog.get("schema_version") != 1:
+            raise ValueError("Unsupported plugin catalog schema.")
+        signature_text = catalog.pop("signature", None)
+        if not isinstance(signature_text, str):
+            raise ValueError("Plugin catalog is missing its signature.")
+        canonical = json.dumps(catalog, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+        try:
+            verifier.verify(base64.b64decode(signature_text, validate=True), canonical)
+        except Exception as exc:
+            raise ValueError("Plugin catalog signature verification failed.") from exc
+
+        entries = catalog.get("plugins")
+        if not isinstance(entries, list):
+            raise ValueError("Plugin catalog must contain a plugins list.")
+        matches = [
+            entry for entry in entries
+            if isinstance(entry, dict) and entry.get("id") == plugin_id and entry.get("version") == version
+        ]
+        if len(matches) != 1:
+            raise ValueError("The requested plugin and version must appear exactly once in the catalog.")
+        entry = matches[0]
+        package_url = entry.get("url")
+        expected_hash = entry.get("sha256")
+        parsed_package = urlparse(package_url) if isinstance(package_url, str) else None
+        if (
+            parsed_package is None or parsed_package.scheme != "https" or not parsed_package.hostname
+            or parsed_package.username or parsed_package.password
+            or not isinstance(expected_hash, str) or not re.fullmatch(r"[a-f0-9]{64}", expected_hash)
+        ):
+            raise ValueError("Catalog entry must provide an HTTPS package URL and SHA-256 digest.")
+        try:
+            package_response = httpx.get(package_url, timeout=30, follow_redirects=False)
+            package_response.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise ValueError(f"Unable to download plugin package: {exc}") from exc
+        package_bytes = package_response.content
+        if len(package_bytes) > MAX_PACKAGE_BYTES or hashlib.sha256(package_bytes).hexdigest() != expected_hash:
+            raise ValueError("Plugin package size or catalog SHA-256 digest is invalid.")
+        with tempfile.NamedTemporaryFile(suffix=".fluxplugin", delete=False) as temporary:
+            temporary.write(package_bytes)
+            temporary_path = Path(temporary.name)
+        try:
+            return self.install_package(temporary_path, public_key)
+        finally:
+            temporary_path.unlink(missing_ok=True)
+
     def install_package(self, package_path: Path, public_key: str) -> Path:
         """Verify an Ed25519-signed ZIP and store it without executing its contents.
 
