@@ -65,7 +65,7 @@ Flux reads optional settings from the platform configuration directory. Set `FLU
 ```toml
 [flux]
 provider = "groq"
-model = "llama-3.3-70b-versatile"
+model = "openai/gpt-oss-120b"
 workspace = "."
 request_timeout = 90
 max_tool_rounds = 8
