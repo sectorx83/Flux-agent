@@ -47,3 +47,26 @@ def test_unembedded_memory_listing_and_model_refresh(tmp_path: Path):
     store.set_embedding(first, "alpha", "model-a", [1.0, 0.0])
     assert [item["id"] for item in store.list_unembedded("alpha", "model-a")] == [second]
     assert [item["id"] for item in store.list_unembedded("alpha", "model-b")] == [first, second]
+
+
+
+def test_existing_memory_database_rebuilds_full_text_index(tmp_path: Path):
+    import sqlite3
+    from datetime import UTC, datetime
+
+    path = tmp_path / "legacy-memory.db"
+    with sqlite3.connect(path) as db:
+        db.execute(
+            """CREATE TABLE memories (
+                id INTEGER PRIMARY KEY, project TEXT NOT NULL, category TEXT NOT NULL,
+                content TEXT NOT NULL, created_at TEXT NOT NULL
+            )"""
+        )
+        db.execute(
+            "INSERT INTO memories VALUES(1,?,?,?,?)",
+            ("legacy-project", "decision", "Existing memory uses SQLite", datetime.now(UTC).isoformat()),
+        )
+    store = MemoryStore(path)
+    results = store.search("legacy-project", "SQLite")
+    assert len(results) == 1
+    assert results[0]["content"] == "Existing memory uses SQLite"
