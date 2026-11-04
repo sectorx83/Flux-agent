@@ -35,7 +35,7 @@ class BrowserAutomation:
         if parsed.scheme not in {"http", "https"} or not parsed.hostname:
             raise ValueError("Browser navigation only accepts absolute HTTP or HTTPS URLs.")
         if self._page is None:
-            raise RuntimeError("Browser is not started.")
+            self.start()
         response = self._page.goto(url, wait_until="domcontentloaded", timeout=30_000)
         title = self._page.title()
         status = response.status if response else "unknown"
