@@ -409,6 +409,7 @@ def remote_tasks() -> None:
 def memory_add(
     content: str = typer.Argument(..., help="Memory content to save."),
     category: str = typer.Option("note", help="Memory category."),
+    semantic: bool = typer.Option(False, help="Also create a local embedding for semantic search."),
 ) -> None:
     """Save a note to local project memory."""
     from platformdirs import user_data_dir
@@ -417,12 +418,21 @@ def memory_add(
 
     path = Path(user_data_dir("flux-agent")) / "memory.sqlite3"
     memory = MemoryStore(path)
-    memory_id = memory.add(str(load_config().workspace), content, category)
+    project = str(load_config().workspace)
+    memory_id = memory.add(project, content, category)
+    if semantic:
+        from flux_agent.memory.embeddings import DEFAULT_EMBEDDING_MODEL, LocalEmbedder
+
+        embedder = LocalEmbedder()
+        memory.set_embedding(memory_id, project, embedder.model_name, embedder.embed_one(content))
     console.print(f"Saved memory [green]#{memory_id}[/green]")
 
 
 @app.command("memory-search")
-def memory_search(query: str = typer.Argument(..., help="Search local project memory.")) -> None:
+def memory_search(
+    query: str = typer.Argument(..., help="Search local project memory."),
+    semantic: bool = typer.Option(False, help="Use local vector similarity instead of keyword search."),
+) -> None:
     """Search notes saved for the current workspace."""
     from platformdirs import user_data_dir
 
@@ -430,12 +440,46 @@ def memory_search(query: str = typer.Argument(..., help="Search local project me
 
     path = Path(user_data_dir("flux-agent")) / "memory.sqlite3"
     memory = MemoryStore(path)
-    results = memory.search(str(load_config().workspace), query)
+    project = str(load_config().workspace)
+    if semantic:
+        from flux_agent.memory.embeddings import LocalEmbedder
+
+        embedder = LocalEmbedder()
+        results = memory.search_semantic(project, embedder.embed_one(query), embedder.model_name)
+    else:
+        results = memory.search(project, query)
     if not results:
-        console.print("No matching memories.")
+        console.print("No matching memories. Use --semantic when saving notes to index them locally.")
         return
     for item in results:
-        console.print(Panel(str(item["content"]), title=f"#{item['id']} · {item['category']}"))
+        score = f" · similarity {float(item['score']):.3f}" if "score" in item else ""
+        console.print(
+            Panel(str(item["content"]), title=f"#{item['id']} · {item['category']}{score}")
+        )
+
+
+@app.command("memory-reindex")
+def memory_reindex(
+    batch_size: int = typer.Option(32, min=1, max=128, help="Number of notes to embed per batch."),
+) -> None:
+    """Create or refresh local embeddings for existing workspace memories."""
+    from platformdirs import user_data_dir
+
+    from flux_agent.memory.embeddings import LocalEmbedder
+    from flux_agent.memory.store import MemoryStore
+
+    project = str(load_config().workspace)
+    memory = MemoryStore(Path(user_data_dir("flux-agent")) / "memory.sqlite3")
+    embedder = LocalEmbedder()
+    pending = memory.list_unembedded(project, embedder.model_name, 500)
+    indexed = 0
+    for offset in range(0, len(pending), batch_size):
+        batch = pending[offset : offset + batch_size]
+        vectors = embedder.embed([str(item["content"]) for item in batch])
+        for item, vector in zip(batch, vectors, strict=True):
+            memory.set_embedding(int(item["id"]), project, embedder.model_name, vector)
+            indexed += 1
+    console.print(f"Indexed [green]{indexed}[/green] memories with {embedder.model_name}.")
 
 
 @app.command("integrations")
