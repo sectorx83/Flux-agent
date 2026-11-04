@@ -94,3 +94,90 @@ def test_signed_plugin_package_rejects_path_traversal(tmp_path: Path):
         archive.writestr("SIGNATURE.ed25519", base64.b64encode(b"x" * 64))
     with pytest.raises(ValueError, match="Unsafe or duplicate"):
         PluginRegistry(tmp_path / "registry").install_package(package, base64.b64encode(b"x" * 32).decode())
+
+
+def test_signed_catalog_downloads_exact_package_and_verifies_both_signatures(tmp_path: Path, monkeypatch):
+    import base64
+    import hashlib
+    import io
+    import json
+    import zipfile
+
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    manifest = {
+        "id": "catalog-plugin",
+        "name": "Catalog Plugin",
+        "version": "2.0.0",
+        "permissions": ["workspace.read"],
+    }
+    package_files = {
+        "manifest.json": json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode(),
+        "README.md": b"Catalog package content.",
+    }
+    package_payload = {
+        "manifest": manifest,
+        "files": {name: hashlib.sha256(data).hexdigest() for name, data in sorted(package_files.items())},
+    }
+    private_key = Ed25519PrivateKey.generate()
+    package_signature = private_key.sign(
+        json.dumps(package_payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+    )
+    package_stream = io.BytesIO()
+    with zipfile.ZipFile(package_stream, "w") as archive:
+        for name, data in package_files.items():
+            archive.writestr(name, data)
+        archive.writestr("SIGNATURE.ed25519", base64.b64encode(package_signature))
+    package_bytes = package_stream.getvalue()
+    catalog = {
+        "schema_version": 1,
+        "plugins": [{
+            "id": manifest["id"],
+            "version": manifest["version"],
+            "url": "https://plugins.example/catalog-plugin.fluxplugin",
+            "sha256": hashlib.sha256(package_bytes).hexdigest(),
+        }],
+    }
+    catalog_signature = private_key.sign(
+        json.dumps(catalog, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+    )
+    catalog["signature"] = base64.b64encode(catalog_signature).decode()
+    public_key = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PublicFormat.Raw,
+    )
+    class Response:
+        def __init__(self, content: bytes, payload: dict | None = None):
+            self.content = content
+            self._payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._payload
+
+    def fake_get(url, **_kwargs):
+        if url == "https://plugins.example/catalog.json":
+            body = json.dumps(catalog).encode()
+            return Response(body, catalog)
+        return Response(package_bytes)
+
+    monkeypatch.setattr("flux_agent.integrations.plugins.httpx.get", fake_get, raising=False)
+    destination = PluginRegistry(tmp_path / "registry").install_from_catalog(
+        "https://plugins.example/catalog.json",
+        manifest["id"],
+        manifest["version"],
+        base64.b64encode(public_key).decode(),
+    )
+    assert destination.is_file()
+    assert json.loads((destination.parent / "plugin.json").read_text())["id"] == manifest["id"]
+
+
+def test_plugin_catalog_requires_https(tmp_path: Path):
+    pytest.importorskip("cryptography")
+    with pytest.raises(ValueError, match="HTTPS"):
+        PluginRegistry(tmp_path / "registry").install_from_catalog(
+            "http://plugins.example/catalog.json", "plugin", "1.0.0", "invalid"
+        )
