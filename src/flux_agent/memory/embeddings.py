@@ -1,7 +1,5 @@
 """Optional local embedding generation using FastEmbed."""
 
-from __future__ import annotations
-
 from collections.abc import Sequence
 
 
