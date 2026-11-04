@@ -98,7 +98,6 @@ class IntegrationHub:
         url = spec.test_url
         if service == "telegram":
             url = f"https://api.telegram.org/bot{self._token(service)}/getMe"
-            self._token(service)
             try:
                 response = httpx.get(url, timeout=self.timeout)
                 response.raise_for_status()
