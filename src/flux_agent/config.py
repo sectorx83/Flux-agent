@@ -17,6 +17,7 @@ class FluxConfig:
     workspace: Path = Path.cwd()
     request_timeout: float = 90.0
     max_tool_rounds: int = 8
+    fallback_providers: tuple[str, ...] = ()
 
 
 def default_config_path() -> Path:
@@ -37,10 +38,14 @@ def load_config(path: Path | None = None) -> FluxConfig:
     workspace_value = os.getenv("FLUX_WORKSPACE", data.get("workspace", "."))
     workspace = Path(workspace_value).expanduser().resolve()
     model = os.getenv("FLUX_MODEL", data.get("model", "openai/gpt-oss-120b"))
+    fallbacks_raw = os.getenv("FLUX_FALLBACK_PROVIDERS", "")
+    configured_fallbacks = data.get("fallback_providers", [])
+    fallbacks = tuple(item.strip() for item in (fallbacks_raw.split(",") if fallbacks_raw else configured_fallbacks) if item.strip())
     return FluxConfig(
         provider=data.get("provider", "groq"),
         model=model,
         workspace=workspace,
         request_timeout=float(data.get("request_timeout", 90.0)),
         max_tool_rounds=int(data.get("max_tool_rounds", 8)),
+        fallback_providers=fallbacks,
     )
