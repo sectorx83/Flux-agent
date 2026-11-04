@@ -1,31 +1,34 @@
 # Flux Agent roadmap
 
-## Completed foundations
-- [x] Python CLI with Chat, Plan, and Build modes
-- [x] Groq provider and optional Gemini, Cerebras, and OpenRouter adapters
-- [x] Workspace file tools and approval-gated shell commands
-- [x] Local configuration and CI baseline
-- [x] SQLite project notes with full-text search
-- [x] Bounded asynchronous multi-agent orchestration primitive
-- [x] Persistent one-shot and recurring workflow schedules
-- [x] Foreground workflow worker for due schedules
-- [x] Plugin manifest discovery and local CLI discovery
-- [x] MCP stdio client foundation
-- [x] Optional Playwright browser controller
-- [x] Approved deployment CLI adapters
-- [x] Authenticated HTTPS remote API, persistent task queue, and host-side worker
+## Phase 1: Core completion
 
-## Remaining product work
-- [x] Integrate explicit multi-agent delegation into the interactive Build-mode tool loop
-- [ ] Add automatic task decomposition and shared specialist tool access
-- [ ] Add embedding-backed semantic memory as an optional provider, retaining local FTS fallback
-- [ ] Add workflow event triggers, webhooks, retry policies, and notifications
-- [ ] Build a signed plugin package format and public plugin catalog
-- [ ] Add official OAuth/API integrations for Discord, Telegram, GitHub, Google, Slack, and task tools
-- [ ] Add remote device pairing, per-device credentials, session revocation, and task streaming
-- [ ] Integrate browser actions into the model tool loop with clear approval prompts
-- [ ] Add deployment status verification, rollback orchestration, and environment management
-- [ ] Add provider capability-aware routing, usage tracking, and cost reporting
-- [ ] Finish cross-platform packaging, release automation, and broader integration tests
+- [x] Automatic task decomposition for complex Build-mode work
+- [x] Shared read-only workspace tools for specialist agents
+- [x] Browser automation integrated into the Build-mode model tool loop
+- [x] Explicit approval for browser navigation and page interactions
+- [x] Workflow retry policies with configurable limits and delays
+- [x] Named workflow event triggers
+- [x] Authenticated webhook endpoint for remote workflow events
+- [x] Worker-console success and failure notifications
+- [x] Regression tests for browser approvals, workflow retries, and event-triggered schedules
+- [x] Updated setup, usage, architecture, and safety documentation
 
-Flux intentionally does not include an operating-system sandbox. It uses explicit approvals and workspace path checks, but tools run with the permissions of the launching user. Those controls are convenience and guardrails, not isolation.
+## Phase 2: Intelligence and connectivity
+
+- [ ] Embedding-backed semantic memory with an optional local embedding provider and vector index
+- [ ] Official Discord, Telegram, GitHub, Google, Slack, and task-management integrations
+- [ ] Model capability-aware routing
+- [ ] Usage tracking and cost reporting
+- [ ] Remote device pairing and per-device credentials
+- [ ] Remote task streaming and session revocation
+
+## Phase 3: Production and ecosystem
+
+- [ ] Signed plugin packages and a public plugin catalog
+- [ ] Deployment status verification and rollback orchestration
+- [ ] Environment management
+- [ ] Cross-platform packaging and release automation
+- [ ] Comprehensive integration and security testing
+- [ ] Complete developer and operator documentation
+
+Flux intentionally does not include an operating-system sandbox. It uses explicit approvals and workspace path checks, but tools run with the permissions of the launching user. Those controls are guardrails, not isolation.
