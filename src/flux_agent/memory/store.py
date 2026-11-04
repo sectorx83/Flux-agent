@@ -5,9 +5,9 @@ from __future__ import annotations
 import math
 import sqlite3
 import struct
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Sequence
 
 
 class MemoryStore:
