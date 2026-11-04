@@ -63,7 +63,7 @@ def test_vercel_rollback_requires_approval_and_targets_exact_deployment(tmp_path
 
 
 def test_rollback_rejects_unsupported_provider(tmp_path: Path):
-    with pytest.raises(ValueError, match="only for Vercel"):
+    with pytest.raises(ValueError, match="supported for Vercel deployments and Docker Swarm services"):
         DeploymentEngine().rollback("docker-build", "container-id", tmp_path, approved=True)
 
 
