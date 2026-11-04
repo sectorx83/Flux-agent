@@ -8,11 +8,11 @@ Flux is local-first. The CLI owns the user session, the provider router owns mod
 - **Provider router:** Groq primary with optional Gemini, Cerebras, and OpenRouter compatible adapters.
 - **Execution tools:** workspace files, shell, Git, tests, and package managers.
 - **Security:** permission policy, explicit approvals, workspace boundaries, timeouts, and audit-friendly task records.
-- **Agents:** bounded specialist task delegation with concurrency limits.
+- **Agents:** automatic decomposition of complex Build tasks into bounded specialists. Specialists share read-only workspace file tools; mutations remain with the primary agent.
 - **Memory:** local SQLite project notes and full-text search. Embedding-backed semantic retrieval is a later extension; this release does not label keyword search as semantic embeddings.
 - **Integrations:** manifest discovery, CLI discovery, and MCP stdio transport. Plugin manifests are inspected without executing plugin code.
-- **Automation:** persistent one-shot and interval workflow schedule storage.
-- **Browser:** optional Playwright browser controller.
+- **Automation:** persistent one-shot, interval, and named event workflows with bounded retries and retry notifications. Authenticated webhook events can trigger waiting workflows.
+- **Browser:** optional Playwright controller integrated into Build-mode tool calls for approved navigation and clicks plus page-text inspection.
 - **Deployment:** approved wrappers around installed Vercel, Docker, and GitHub CLIs.
 - **Remote:** optional authenticated API and Termux-friendly HTTPS client.
 
@@ -27,4 +27,4 @@ Flux is local-first. The CLI owns the user session, the provider router owns mod
 
 ## Planned extensions
 
-Streaming responses, encrypted credential vault, richer OAuth integrations, vector embeddings, workflow triggers/webhooks, job worker lifecycle, marketplace signing, robust sandbox backends, remote task execution and result streaming, and cross-platform release packaging.
+Streaming responses, encrypted credential vault, richer OAuth integrations, vector embeddings, marketplace signing, robust sandbox backends, remote device pairing and result streaming, and cross-platform release packaging.
