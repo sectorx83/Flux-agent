@@ -25,6 +25,12 @@ class ProviderSpec:
     default_model: str
 
 
+MODEL_CAPABILITIES: dict[str, frozenset[str]] = {
+    "openai/gpt-oss-120b": frozenset({"chat", "tool_calling"}),
+    "gemini-2.5-flash": frozenset({"chat", "tool_calling"}),
+    "gpt-oss-120b": frozenset({"chat", "tool_calling"}),
+}
+
 PROVIDERS = {
     "groq": ProviderSpec("groq", "https://api.groq.com/openai/v1", "GROQ_API_KEY", "openai/gpt-oss-120b"),
     "gemini": ProviderSpec(
@@ -87,7 +93,7 @@ class CompatibleProvider:
 class ProviderRouter:
     def __init__(
         self, primary: str = "groq", fallbacks: tuple[str, ...] = (), model: str | None = None,
-        timeout: float = 90.0,
+        timeout: float = 90.0, model_capabilities: dict[str, tuple[str, ...]] | None = None,
     ) -> None:
         names = tuple(dict.fromkeys((primary, *fallbacks)))
         unknown = [name for name in names if name not in PROVIDERS]
@@ -103,6 +109,11 @@ class ProviderRouter:
                 provider = CompatibleProvider(spec, selected_model, timeout)
             self.providers.append((name, provider))
         self.active_provider = primary
+        self.active_model = getattr(self.providers[0][1], "model", model or PROVIDERS[primary].default_model)
+        self.model_capabilities = {
+            **{name: set(values) for name, values in MODEL_CAPABILITIES.items()},
+            **{name: set(values) for name, values in (model_capabilities or {}).items()},
+        }
         self._usage_store = None
 
     def _record_usage(self, provider: str, model: str, usage: dict[str, Any]) -> None:
@@ -124,10 +135,29 @@ class ProviderRouter:
         self, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None = None
     ) -> dict[str, Any]:
         failures: list[str] = []
+        required = {"chat"}
+        if tools:
+            required.add("tool_calling")
+        for message in messages:
+            content = message.get("content")
+            if isinstance(content, list) and any(
+                isinstance(part, dict) and part.get("type") in {"image", "image_url"}
+                for part in content
+            ):
+                required.add("vision")
         for name, provider in self.providers:
+            model_name = getattr(provider, "model", "")
+            capabilities = self.model_capabilities.get(model_name, {"chat"})
+            missing = required - capabilities
+            if missing:
+                failures.append(
+                    f"{name}/{model_name} lacks required capabilities: {', '.join(sorted(missing))}"
+                )
+                continue
             try:
                 result = provider.chat(messages, tools)
                 self.active_provider = name
+                self.active_model = getattr(provider, "last_model", model_name)
                 usage = getattr(provider, "last_usage", {})
                 if usage:
                     self._record_usage(name, getattr(provider, "last_model", ""), usage)
