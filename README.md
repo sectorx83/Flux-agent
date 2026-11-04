@@ -71,6 +71,7 @@ flux env-set GROQ_API_KEY
 flux env-unset GROQ_API_KEY
 flux deployment-status vercel DEPLOYMENT_URL
 flux deployment-rollback DEPLOYMENT_URL
+flux deployment-rollback production_api --provider docker-swarm
 python -m pip install -e ".[memory]"
 flux memory-add "The project uses Python and pytest" --semantic
 flux memory-reindex
