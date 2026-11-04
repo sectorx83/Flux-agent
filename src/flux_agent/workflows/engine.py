@@ -88,7 +88,7 @@ class WorkflowEngine:
             cursor = db.execute(
                 """UPDATE workflows SET pending=0, pending_count=pending_count+1,
                    run_at=?, attempts=0, last_error=NULL
-                   WHERE enabled=1 AND pending=1 AND event_name=?""",
+                   WHERE enabled=1 AND event_name=?""",
                 (current.isoformat(), event_name),
             )
             return cursor.rowcount
