@@ -29,4 +29,4 @@ Flux is local-first. The CLI owns the user session, the provider router owns mod
 
 ## Remaining production work
 
-In-app OAuth consent and refresh-token lifecycle, execution isolation through an OS/container sandbox, plugin execution and permission enforcement (not implemented), generic Docker container rollback, workflow-specific GitHub Actions rollback, additional provider-specific deployment verification, release signing/provenance, OAuth token lifecycle, and expanded live integration tests. Signed packages are integrity-verified but are not a sandbox or a safety guarantee.
+In-app OAuth consent and refresh-token lifecycle, execution isolation through an OS/container sandbox, plugin execution and permission enforcement (not implemented), generic Docker container rollback, workflow-specific GitHub Actions rollback, additional provider-specific deployment verification, release signing/provenance, and expanded live integration tests. Signed packages are integrity-verified but are not a sandbox or a safety guarantee.
