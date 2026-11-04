@@ -28,6 +28,7 @@ class WorkflowEngine:
                 "last_error": "TEXT",
                 "event_name": "TEXT",
                 "pending": "INTEGER NOT NULL DEFAULT 0",
+                "pending_count": "INTEGER NOT NULL DEFAULT 0",
             }
             for column, declaration in migrations.items():
                 if column not in columns:
@@ -63,11 +64,11 @@ class WorkflowEngine:
         with sqlite3.connect(self.path) as db:
             cursor = db.execute(
                 """INSERT INTO workflows(
-                    name,payload,run_at,interval_seconds,max_retries,retry_delay_seconds,event_name,pending
-                ) VALUES(?,?,?,?,?,?,?,?)""",
+                    name,payload,run_at,interval_seconds,max_retries,retry_delay_seconds,event_name,pending,pending_count
+                ) VALUES(?,?,?,?,?,?,?,?,?)""",
                 (
                     name, json.dumps(payload), when.isoformat(), interval_seconds,
-                    max_retries, retry_delay_seconds, event_name, int(event_name is not None),
+                    max_retries, retry_delay_seconds, event_name, int(event_name is not None), 0,
                 ),
             )
             return int(cursor.lastrowid)
@@ -85,7 +86,8 @@ class WorkflowEngine:
         current = (now or datetime.now(UTC)).astimezone(UTC)
         with sqlite3.connect(self.path) as db:
             cursor = db.execute(
-                """UPDATE workflows SET pending=0, run_at=?, attempts=0, last_error=NULL
+                """UPDATE workflows SET pending=0, pending_count=pending_count+1,
+                   run_at=?, attempts=0, last_error=NULL
                    WHERE enabled=1 AND pending=1 AND event_name=?""",
                 (current.isoformat(), event_name),
             )
@@ -128,8 +130,13 @@ class WorkflowEngine:
                     continue
                 if item["event_name"]:
                     db.execute(
-                        "UPDATE workflows SET pending=1, attempts=0, last_error=NULL WHERE id=?",
-                        (item["id"],),
+                        """UPDATE workflows
+                           SET pending_count=MAX(pending_count-1, 0),
+                               pending=CASE WHEN pending_count>1 THEN 0 ELSE 1 END,
+                               run_at=CASE WHEN pending_count>1 THEN ? ELSE run_at END,
+                               attempts=0, last_error=NULL
+                           WHERE id=?""",
+                        (current.isoformat(), item["id"]),
                     )
                 elif item["interval_seconds"]:
                     next_run = current + timedelta(seconds=item["interval_seconds"])
