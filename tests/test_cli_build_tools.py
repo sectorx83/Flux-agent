@@ -1,0 +1,76 @@
+import json
+from pathlib import Path
+
+from flux_agent.cli import (
+    SPECIALIST_TOOL_DEFINITIONS,
+    TOOL_DEFINITIONS,
+    _execute_tool,
+)
+from flux_agent.tools.workspace import Workspace
+
+
+class FakeProvider:
+    def __init__(self, first_tool: str = "read_file") -> None:
+        self.calls = 0
+        self.first_tool = first_tool
+
+    def chat(self, messages, tools=None):
+        self.calls += 1
+        if self.calls == 1:
+            return {
+                "role": "assistant",
+                "tool_calls": [
+                    {
+                        "id": "specialist-call",
+                        "function": {
+                            "name": self.first_tool,
+                            "arguments": json.dumps({"path": "facts.txt"}),
+                        },
+                    }
+                ],
+            }
+        return {"role": "assistant", "content": "Inspected the shared workspace file."}
+
+
+def test_specialists_receive_shared_read_only_workspace_tools(tmp_path: Path):
+    workspace = Workspace(tmp_path)
+    workspace.write_file("facts.txt", "The release target is Python 3.11.")
+    provider = FakeProvider()
+
+    result = json.loads(
+        _execute_tool(
+            workspace,
+            "delegate_tasks",
+            {"tasks": [{"name": "inspect", "instruction": "Inspect the release target."}]},
+            provider,
+        )
+    )
+
+    assert [item["function"]["name"] for item in SPECIALIST_TOOL_DEFINITIONS] == [
+        "list_files",
+        "read_file",
+    ]
+    assert result[0]["output"] == "Inspected the shared workspace file."
+    assert provider.calls == 2
+
+
+def test_specialist_cannot_execute_write_tools(tmp_path: Path):
+    workspace = Workspace(tmp_path)
+    provider = FakeProvider(first_tool="write_file")
+
+    result = json.loads(
+        _execute_tool(
+            workspace,
+            "delegate_tasks",
+            {"tasks": [{"name": "inspect", "instruction": "Try to write."}]},
+            provider,
+        )
+    )
+
+    assert "write and execution tools are unavailable" in result[0]["output"]
+    assert not (tmp_path / "facts.txt").exists()
+
+
+def test_browser_tools_are_registered_for_build_mode():
+    names = {item["function"]["name"] for item in TOOL_DEFINITIONS}
+    assert {"browser_navigate", "browser_read", "browser_click"} <= names
