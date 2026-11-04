@@ -1,13 +1,13 @@
 import pytest
 
-fastapi = pytest.importorskip("fastapi")
-from fastapi.testclient import TestClient
-
 from flux_agent.remote.server import create_app
 from flux_agent.workflows.engine import WorkflowEngine
 
 
 def test_authenticated_webhook_triggers_waiting_workflow(tmp_path, monkeypatch):
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+
     import platformdirs
 
     monkeypatch.setenv("FLUX_REMOTE_TOKEN", "t" * 48)
