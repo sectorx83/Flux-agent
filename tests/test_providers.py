@@ -51,3 +51,45 @@ def test_usage_store_rejects_negative_prices_and_invalid_counts(tmp_path):
         store.set_price("model", -1, 1)
     with pytest.raises(ValueError, match="invalid"):
         store.record("groq", "model", {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 2})
+
+
+
+def test_router_skips_models_without_tool_calling_capability():
+    class FakeProvider:
+        def __init__(self, model, result):
+            self.model = model
+            self.result = result
+            self.calls = 0
+            self.last_usage = {}
+            self.last_model = model
+
+        def chat(self, messages, tools=None):
+            self.calls += 1
+            return {"role": "assistant", "content": self.result}
+
+    router = ProviderRouter("groq", ("gemini",))
+    first = FakeProvider("chat-only", "wrong")
+    second = FakeProvider("tool-model", "correct")
+    router.providers = [("groq", first), ("gemini", second)]
+    router.model_capabilities["chat-only"] = {"chat"}
+    router.model_capabilities["tool-model"] = {"chat", "tool_calling"}
+
+    result = router.chat([{"role": "user", "content": "inspect"}], tools=[{"type": "function"}])
+    assert result["content"] == "correct"
+    assert first.calls == 0
+    assert second.calls == 1
+    assert router.active_model == "tool-model"
+
+
+def test_router_requires_vision_capability_for_image_messages():
+    import pytest
+
+    from flux_agent.providers.groq import ProviderError
+
+    router = ProviderRouter("groq")
+    router.providers = [("groq", type("Fake", (), {"model": "text-only"})())]
+    router.model_capabilities["text-only"] = {"chat", "tool_calling"}
+    with pytest.raises(ProviderError, match="vision"):
+        router.chat(
+            [{"role": "user", "content": [{"type": "image_url", "image_url": {"url": "https://example.invalid/x"}}]}]
+        )
