@@ -31,10 +31,14 @@
 
 ## Phase 3: Production and ecosystem
 
-- [ ] Signed plugin packages and a public plugin catalog
-- [ ] Deployment status verification and rollback orchestration
-- [ ] Environment management
-- [ ] Cross-platform packaging and release automation
+- [x] Ed25519-signed plugin packages with SHA-256 file integrity verification
+- [x] Signed HTTPS plugin catalog with exact-version selection and trusted-key verification
+- [x] Deployment status inspection for Vercel, Docker, and GitHub Actions
+- [x] Approval-gated Vercel rollback for an exact deployment target
+- [ ] Docker and GitHub Actions rollback orchestration
+- [x] Private local environment store with atomic writes, restrictive POSIX permissions, hidden secret entry, and masked listing
+- [x] CI test matrix for Windows, macOS, and Linux on Python 3.11 and 3.12
+- [x] Tagged source/wheel builds, package validation, cross-platform install smoke tests, and GitHub release automation
 - [ ] Comprehensive integration and security testing
 - [ ] Complete developer and operator documentation
 
