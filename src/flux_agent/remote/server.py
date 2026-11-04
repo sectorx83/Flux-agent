@@ -16,7 +16,6 @@ def create_app():
         from fastapi import FastAPI, Header, HTTPException
         from fastapi.responses import StreamingResponse
         from platformdirs import user_data_dir
-        from pydantic import BaseModel, Field
     except ImportError as exc:
         raise RuntimeError("Install remote support with: pip install 'flux-agent[remote]'") from exc
 
@@ -30,13 +29,6 @@ def create_app():
     device_path = Path(os.getenv("FLUX_REMOTE_DEVICE_DB", str(data_dir / "remote-devices.sqlite3")))
     tasks = RemoteTaskStore(task_path)
     devices = RemoteDeviceStore(device_path)
-
-    class TaskRequest(BaseModel):
-        prompt: str
-        mode: str = "chat"
-
-    class PairRequest(BaseModel):
-        device_name: str = Field(min_length=1, max_length=80)
 
     app = FastAPI(title="Flux Agent Remote API", version="0.3.0")
 
@@ -58,10 +50,10 @@ def create_app():
         return {"status": "ok", "service": "flux-agent"}
 
     @app.post("/devices/pair")
-    def pair_device(request: PairRequest, authorization: str | None = Header(default=None)):
+    def pair_device(request: dict, authorization: str | None = Header(default=None)):
         authorize_admin(authorization)
         try:
-            device, token = devices.pair(request.device_name)
+            device, token = devices.pair(str(request.get("device_name", "")))
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"device": device, "token": token, "warning": "Save this token now. It cannot be retrieved later."}
@@ -79,13 +71,15 @@ def create_app():
         return {"device_id": device_id, "revoked": True}
 
     @app.post("/tasks")
-    def create_task(request: TaskRequest, authorization: str | None = Header(default=None)):
+    def create_task(request: dict, authorization: str | None = Header(default=None)):
         identity = authenticate(authorization)
-        if request.mode not in {"chat", "plan", "build"}:
+        prompt = request.get("prompt")
+        mode = request.get("mode", "chat")
+        if not isinstance(mode, str) or mode not in {"chat", "plan", "build"}:
             raise HTTPException(status_code=400, detail="Invalid mode")
-        if not request.prompt.strip() or len(request.prompt) > 20_000:
+        if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 20_000:
             raise HTTPException(status_code=400, detail="Prompt must contain 1-20000 characters")
-        task = tasks.enqueue(request.prompt, request.mode, identity)
+        task = tasks.enqueue(prompt, mode, identity)
         task.pop("device_id", None)
         return task
 
