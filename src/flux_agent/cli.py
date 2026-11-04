@@ -471,12 +471,15 @@ def workflow_list() -> None:
     from flux_agent.workflows.engine import WorkflowEngine
 
     engine = WorkflowEngine(Path(user_data_dir("flux-agent")) / "workflows.sqlite3")
-    table = Table("ID", "Name", "Next run (UTC)", "Enabled", "Interval")
+    table = Table("ID", "Name", "Next run (UTC)", "Enabled", "Interval", "Retries", "Event", "Last error")
     for item in engine.list():
         table.add_row(
             str(item["id"]), item["name"], item["run_at"],
             "yes" if item["enabled"] else "no",
             str(item["interval_seconds"] or "one-shot"),
+            f'{item["attempts"]}/{item["max_retries"]}',
+            item.get("event_name") or "-",
+            (item.get("last_error") or "-")[:60],
         )
     console.print(table)
 
@@ -487,6 +490,9 @@ def workflow_add(
     payload: str = typer.Argument(..., help="JSON payload stored for the workflow handler."),
     run_at: str = typer.Argument(..., help="ISO-8601 run time, including timezone."),
     interval: int | None = typer.Option(None, help="Optional repeat interval in seconds (minimum 60)."),
+    max_retries: int = typer.Option(0, min=0, max=20, help="Maximum retry attempts after failure."),
+    retry_delay: int = typer.Option(60, min=1, max=86400, help="Seconds to wait between retries."),
+    event_name: str | None = typer.Option(None, help="Optional named event; workflow waits for a matching trigger."),
 ) -> None:
     """Schedule a workflow record. A worker must be running to execute due workflows."""
     from datetime import datetime
@@ -502,10 +508,22 @@ def workflow_add(
             raise ValueError("run_at must include a timezone, for example +00:00.")
         workflow_id = WorkflowEngine(
             Path(user_data_dir("flux-agent")) / "workflows.sqlite3"
-        ).add(name, parsed_payload, parsed_time, interval)
+        ).add(name, parsed_payload, parsed_time, interval, max_retries, retry_delay, event_name)
     except (ValueError, json.JSONDecodeError) as exc:
         raise typer.BadParameter(str(exc)) from exc
     console.print(f"Scheduled workflow [green]#{workflow_id}[/green]")
+
+
+@app.command("workflow-trigger")
+def workflow_trigger(event_name: str = typer.Argument(..., help="Named event to trigger.")) -> None:
+    """Trigger all enabled workflows waiting for a matching event."""
+    from platformdirs import user_data_dir
+
+    from flux_agent.workflows.engine import WorkflowEngine
+
+    engine = WorkflowEngine(Path(user_data_dir("flux-agent")) / "workflows.sqlite3")
+    count = engine.trigger_event(event_name)
+    console.print(f"Triggered [green]{count}[/green] workflow(s) for event '{event_name}'.")
 
 
 @app.command("workflow-cancel")
