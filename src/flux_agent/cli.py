@@ -17,7 +17,8 @@ from rich.table import Table
 from flux_agent import __version__
 from flux_agent.config import load_config
 from flux_agent.modes.prompts import SYSTEM_PROMPTS
-from flux_agent.providers.groq import GroqProvider, ProviderError
+from flux_agent.providers.groq import ProviderError
+from flux_agent.providers.router import ChatProvider, ProviderRouter
 from flux_agent.tools.shell import run_command
 from flux_agent.tools.workspace import Workspace, WorkspaceError
 
@@ -104,7 +105,7 @@ def _load_dotenv() -> None:
 
 
 def _run_turn(
-    provider: GroqProvider,
+    provider: ChatProvider,
     workspace: Workspace,
     mode: str,
     history: list[dict[str, Any]],
@@ -133,7 +134,7 @@ def _interactive() -> None:
     _load_dotenv()
     config = load_config()
     workspace = Workspace(config.workspace)
-    provider = GroqProvider(config.model, config.request_timeout)
+    provider = ProviderRouter(config.provider, config.fallback_providers, config.model, config.request_timeout)
     mode = "chat"
     history: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPTS[mode]}]
     console.print(
@@ -143,7 +144,7 @@ def _interactive() -> None:
         )
     )
     console.print(f"Workspace: [cyan]{workspace.root}[/cyan]")
-    console.print(f"Provider: [green]Groq[/green] · Model: [cyan]{config.model}[/cyan]")
+    console.print(f"Provider: [green]{config.provider}[/green] · Model: [cyan]{config.model}[/cyan]")
     console.print("Commands: /chat /plan /build /mode /tools /model /settings /help /exit")
     while True:
         try:
@@ -172,10 +173,10 @@ def _interactive() -> None:
             console.print("Build mode tools: list_files, read_file, write_file, run_command")
             continue
         if command == "/model":
-            console.print(f"Provider: Groq · Model: {config.model}")
+            console.print(f"Provider: {provider.active_provider} · Model: {config.model}")
             continue
         if command == "/settings":
-            console.print(f"Workspace: {workspace.root}\nConfig file: {config.workspace}\nProvider: Groq")
+            console.print(f"Workspace: {workspace.root}\nConfig file: {config.workspace}\nProvider: {config.provider}\nFallbacks: {config.fallback_providers}")
             continue
         if command == "/help":
             console.print("Use natural language for tasks. Switch modes with /chat, /plan or /build. Use /exit to quit.")
@@ -223,3 +224,72 @@ def init(path: Path = typer.Argument(Path("."), help="Workspace directory to ini
         encoding="utf-8",
     )
     console.print(f"Created [green]{flux_file}[/green]")
+
+
+@app.command("remote-submit")
+def remote_submit(
+    prompt: str = typer.Argument(..., help="Task to send to the Flux host."),
+    mode: str = typer.Option("chat", help="Remote mode: chat, plan, or build."),
+) -> None:
+    """Submit a task to a paired Flux host (Termux-friendly)."""
+    from flux_agent.remote.client import RemoteClient
+
+    try:
+        result = RemoteClient().submit(prompt, mode)
+    except (ValueError, OSError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    console.print_json(data=result)
+
+
+@app.command("remote-tasks")
+def remote_tasks() -> None:
+    """List tasks queued on the paired Flux host."""
+    from flux_agent.remote.client import RemoteClient
+
+    try:
+        result = RemoteClient().tasks()
+    except (ValueError, OSError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    console.print_json(data=result)
+
+
+@app.command("memory-add")
+def memory_add(
+    content: str = typer.Argument(..., help="Memory content to save."),
+    category: str = typer.Option("note", help="Memory category."),
+) -> None:
+    """Save a note to local project memory."""
+    from platformdirs import user_data_dir
+    from flux_agent.memory.store import MemoryStore
+
+    path = Path(user_data_dir("flux-agent")) / "memory.sqlite3"
+    memory = MemoryStore(path)
+    memory_id = memory.add(str(load_config().workspace), content, category)
+    console.print(f"Saved memory [green]#{memory_id}[/green]")
+
+
+@app.command("memory-search")
+def memory_search(query: str = typer.Argument(..., help="Search local project memory.")) -> None:
+    """Search notes saved for the current workspace."""
+    from platformdirs import user_data_dir
+    from flux_agent.memory.store import MemoryStore
+
+    path = Path(user_data_dir("flux-agent")) / "memory.sqlite3"
+    memory = MemoryStore(path)
+    results = memory.search(str(load_config().workspace), query)
+    if not results:
+        console.print("No matching memories.")
+        return
+    for item in results:
+        console.print(Panel(str(item["content"]), title=f"#{item['id']} · {item['category']}"))
+
+
+@app.command("integrations")
+def integrations() -> None:
+    """Show discovered local CLI integrations."""
+    from flux_agent.integrations.cli_discovery import discover_clis
+
+    table = Table("CLI", "Path", "Status")
+    for name, path in discover_clis().items():
+        table.add_row(name, path or "not found", "[green]available[/green]" if path else "[dim]missing[/dim]")
+    console.print(table)
