@@ -315,7 +315,10 @@ def _interactive() -> None:
             console.print(table)
             continue
         if command == "/tools":
-            console.print("Build mode tools: list_files, read_file, write_file, run_command, delegate_tasks, browser_navigate, browser_read, browser_click")
+            console.print(
+                "Build mode tools: list_files, read_file, write_file, run_command, delegate_tasks, "
+                "browser_navigate, browser_read, browser_click"
+            )
             continue
         if command == "/model":
             console.print(f"Provider: {provider.active_provider} · Model: {config.model}")
