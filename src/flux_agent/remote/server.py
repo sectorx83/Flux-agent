@@ -52,4 +52,16 @@ def create_app():
         authorize(authorization)
         return {"tasks": store.list(limit=100)}
 
+    @app.post("/workflows/events/{event_name}")
+    def trigger_workflows(event_name: str, authorization: str | None = Header(default=None)):
+        authorize(authorization)
+        from flux_agent.workflows.engine import WorkflowEngine
+
+        engine = WorkflowEngine(Path(user_data_dir("flux-agent")) / "workflows.sqlite3")
+        try:
+            count = engine.trigger_event(event_name)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"event": event_name, "triggered": count}
+
     return app
