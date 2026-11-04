@@ -18,7 +18,7 @@
 - **Environment management:** hidden-prompt secret entry and private local storage; variable values are never printed.
 - **Terminal experience:** Rich-powered interactive interface and one-shot CLI commands.
 
-Flux calls providers' official APIs and reads credentials from process environment, a local `.env`, or the private Flux environment store. OAuth consent and refresh-token lifecycle remain external responsibilities. Signed plugin packages are verified before storage, but plugin code is not executed. See [docs/ROADMAP.md](docs/ROADMAP.md) for the exact status. Plugin publisher and catalog instructions are in [docs/PLUGIN_CATALOG.md](docs/PLUGIN_CATALOG.md).
+Flux calls providers' official APIs and reads credentials from process environment, a local `.env`, or the private Flux environment store. OAuth consent and refresh-token lifecycle remain external responsibilities. Signed plugin packages are verified before storage, but plugin code is not executed. See [docs/ROADMAP.md](docs/ROADMAP.md) for the exact status. Plugin publisher and catalog instructions are in [docs/PLUGIN_CATALOG.md](docs/PLUGIN_CATALOG.md). Production deployment and recovery procedures are in [docs/OPERATIONS.md](docs/OPERATIONS.md), and automated security coverage is described in [docs/SECURITY_TESTING.md](docs/SECURITY_TESTING.md).
 
 ## Quick start
 
