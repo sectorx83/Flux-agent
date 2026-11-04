@@ -234,7 +234,7 @@ def _execute_tool(
         content = arguments.get("content", "")
         summary = {
             "action": action, "service": service, "target": target,
-            "title": title, "content_preview": content[:300],
+            "title": title, "content": content,
         }
         console.print(Panel(json.dumps(summary, indent=2), title="External integration approval", border_style="yellow"))
         if not Confirm.ask("Allow this external service action?"):
@@ -816,7 +816,10 @@ def remote_worker(
     _load_dotenv()
     config = load_config()
     workspace = Workspace(config.workspace)
-    provider = ProviderRouter(config.provider, config.fallback_providers, config.model, config.request_timeout)
+    provider = ProviderRouter(
+        config.provider, config.fallback_providers, config.model,
+        config.request_timeout, config.model_capabilities,
+    )
     db_path = Path(os.getenv("FLUX_REMOTE_DB", str(Path(user_data_dir("flux-agent")) / "remote-tasks.sqlite3")))
     store = RemoteTaskStore(db_path)
     console.print("Remote worker online. Build tasks request approval in this terminal. Press Ctrl+C to stop.")
@@ -852,7 +855,10 @@ def workflow_worker(
     _load_dotenv()
     config = load_config()
     workspace = Workspace(config.workspace)
-    provider = ProviderRouter(config.provider, config.fallback_providers, config.model, config.request_timeout)
+    provider = ProviderRouter(
+        config.provider, config.fallback_providers, config.model,
+        config.request_timeout, config.model_capabilities,
+    )
     engine = WorkflowEngine(Path(user_data_dir("flux-agent")) / "workflows.sqlite3")
 
     def execute(name: str, payload: dict) -> None:
