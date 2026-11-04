@@ -10,3 +10,7 @@
 - Integrate approval-gated Playwright navigation, page inspection, and browser interactions into the Build tool loop.
 - Add workflow retries, named event triggers, authenticated webhook dispatch, and worker notifications.
 - Add regression coverage for specialist isolation, browser approvals, workflow migrations, retries, and event webhooks.
+- Add optional local FastEmbed semantic memory with SQLite vector persistence and cosine-similarity retrieval.
+- Add official GitHub, Slack, Discord, Telegram, Google Tasks, and Notion API adapters with approval-gated Build actions.
+- Add capability-aware model selection and local token usage/cost reporting.
+- Add hashed per-device remote credentials, device-scoped task access, revocation, and server-sent event task streaming.
