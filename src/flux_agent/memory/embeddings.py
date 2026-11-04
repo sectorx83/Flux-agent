@@ -1,6 +1,6 @@
 """Optional local embedding generation using FastEmbed."""
 
-from collections.abc import Sequence
+from collections.abc import Sequence  # noqa: I001
 
 
 DEFAULT_EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
