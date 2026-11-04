@@ -44,5 +44,9 @@ def test_event_workflow_waits_for_trigger_and_can_be_reused(tmp_path: Path):
     assert engine.trigger_event("git.push", now + timedelta(seconds=2)) == 1
     assert engine.run_due(lambda name, payload: ran.append(name), now + timedelta(seconds=2)) == 1
     assert ran == ["on-push", "on-push"]
+    assert engine.list()[0]["pending"] == 0
+    assert engine.list()[0]["pending_count"] == 1
+    assert engine.run_due(lambda name, payload: ran.append(name), now + timedelta(seconds=2)) == 1
+    assert ran == ["on-push", "on-push", "on-push"]
     assert engine.list()[0]["pending"] == 1
     assert engine.list()[0]["pending_count"] == 0
