@@ -474,7 +474,10 @@ def workflow_list() -> None:
     from flux_agent.workflows.engine import WorkflowEngine
 
     engine = WorkflowEngine(Path(user_data_dir("flux-agent")) / "workflows.sqlite3")
-    table = Table("ID", "Name", "Next run (UTC)", "Enabled", "Interval", "Retries", "Event", "Last error")
+    table = Table(
+        "ID", "Name", "Next run (UTC)", "Enabled", "Interval", "Retries",
+        "Event", "Pending events", "Last error",
+    )
     for item in engine.list():
         table.add_row(
             str(item["id"]), item["name"], item["run_at"],
@@ -482,6 +485,7 @@ def workflow_list() -> None:
             str(item["interval_seconds"] or "one-shot"),
             f'{item["attempts"]}/{item["max_retries"]}',
             item.get("event_name") or "-",
+            str(item.get("pending_count", 0)),
             (item.get("last_error") or "-")[:60],
         )
     console.print(table)
