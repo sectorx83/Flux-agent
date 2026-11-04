@@ -98,6 +98,8 @@ Use `flux usage` to inspect locally recorded token counts. Add exact model price
 
 ## Signed plugins
 
+Publishers can build packages with `flux plugin-pack SOURCE OUTPUT --private-key-file KEY_FILE`. Keep the base64-encoded raw Ed25519 private key protected and offline where possible. See [docs/PLUGIN_CATALOG.md](docs/PLUGIN_CATALOG.md) for key generation, catalog signing, and hosting details.
+
 Install a signed local package with a trusted base64-encoded Ed25519 public key:
 
 ```bash
