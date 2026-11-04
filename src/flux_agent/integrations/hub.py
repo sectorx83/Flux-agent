@@ -30,7 +30,7 @@ SPECS = {
     "slack": IntegrationSpec("slack", "SLACK_BOT_TOKEN", "https://slack.com/api/auth.test"),
     "discord": IntegrationSpec("discord", "DISCORD_BOT_TOKEN", "https://discord.com/api/users/@me", "Bot"),
     "telegram": IntegrationSpec("telegram", "TELEGRAM_BOT_TOKEN", "https://api.telegram.org"),
-    "google": IntegrationSpec("google", "GOOGLE_ACCESS_TOKEN", "https://www.googleapis.com/oauth2/v3/userinfo"),
+    "google": IntegrationSpec("google", "GOOGLE_ACCESS_TOKEN", "https://tasks.googleapis.com/tasks/v1/users/@me/lists?maxResults=1"),
     "notion": IntegrationSpec("notion", "NOTION_TOKEN", "https://api.notion.com/v1/users/me"),
 }
 
@@ -103,7 +103,7 @@ class IntegrationHub:
                 response.raise_for_status()
                 payload = response.json()
             except (httpx.HTTPError, ValueError) as exc:
-                raise IntegrationError(f"telegram request failed: {exc}") from exc
+                raise IntegrationError("Telegram request failed; verify the token and network connection.") from exc
             if not payload.get("ok"):
                 raise IntegrationError(f"Telegram API error: {payload.get('description', 'unknown_error')}")
             return {"service": service, "connected": True, "identity": payload.get("result", {}).get("username")}
