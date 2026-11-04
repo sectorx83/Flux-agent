@@ -18,6 +18,4 @@
 - Add Vercel, Docker, and GitHub Actions deployment status inspection plus approval-gated Vercel and Docker Swarm rollback.
 - Add private environment-variable management with hidden prompts, masked listings, atomic writes, and restrictive POSIX permissions; values remain plaintext at rest.
 - Add production operations, backup/recovery, plugin publishing, and security-testing documentation.
-- Add private environment-variable storage with hidden-prompt entry, atomic writes, and restrictive POSIX permissions.
-
 - Expand CI to Windows, macOS, and Linux on Python 3.11 and 3.12; add source/wheel validation, cross-platform install smoke tests, and tagged GitHub release automation.
