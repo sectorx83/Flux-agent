@@ -54,7 +54,7 @@ def build_signed_package(source_dir: Path, output_path: Path, private_key: str) 
         if not item.is_file():
             continue
         relative = item.relative_to(root).as_posix()
-        if relative == SIGNATURE_FILE or PurePosixPath(relative).is_absolute() or ".." in PurePosixPath(relative).parts:
+        if relative == SIGNATURE_FILE or "\\" in relative or PurePosixPath(relative).is_absolute() or ".." in PurePosixPath(relative).parts:
             raise ValueError(f"Invalid plugin source path: {relative}")
         content = item.read_bytes()
         total_size += len(content)
