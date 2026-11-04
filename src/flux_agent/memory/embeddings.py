@@ -1,5 +1,6 @@
 """Optional local embedding generation using FastEmbed."""
 
+# ruff: noqa: I001
 from collections.abc import Sequence  # noqa: I001
 
 
