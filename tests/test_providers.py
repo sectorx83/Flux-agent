@@ -93,3 +93,12 @@ def test_router_requires_vision_capability_for_image_messages():
         router.chat(
             [{"role": "user", "content": [{"type": "image_url", "image_url": {"url": "https://example.invalid/x"}}]}]
         )
+
+
+
+def test_default_gemini_flash_model_is_eligible_for_vision():
+    router = ProviderRouter("gemini")
+    router.providers = [("gemini", type("Fake", (), {"model": "gemini-2.5-flash"})())]
+    router.chat(
+        [{"role": "user", "content": [{"type": "image_url", "image_url": {"url": "https://example.invalid/image.png"}}]}]
+    )
