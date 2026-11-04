@@ -45,6 +45,12 @@ class WorkflowEngine:
     ) -> int:
         if not name.strip():
             raise ValueError("Workflow name cannot be empty.")
+        if not isinstance(payload, dict):
+            raise ValueError("Workflow payload must be a JSON object.")
+        if run_at.tzinfo is None or run_at.utcoffset() is None:
+            raise ValueError("Workflow run_at must include a timezone.")
+        if event_name is not None:
+            event_name = event_name.strip()
         if interval_seconds is not None and interval_seconds < 60:
             raise ValueError("Recurring workflows must have an interval of at least 60 seconds.")
         if max_retries < 0 or max_retries > 20:
@@ -75,6 +81,7 @@ class WorkflowEngine:
     def trigger_event(self, event_name: str, now: datetime | None = None) -> int:
         if not event_name.strip():
             raise ValueError("Event name cannot be empty.")
+        event_name = event_name.strip()
         current = (now or datetime.now(UTC)).astimezone(UTC)
         with sqlite3.connect(self.path) as db:
             cursor = db.execute(
