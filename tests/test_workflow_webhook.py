@@ -87,3 +87,11 @@ def test_remote_task_stream_emits_terminal_state(tmp_path, monkeypatch):
     assert "event: update" in response.text
     assert '"status":"completed"' in response.text
     assert '"result":"finished"' in response.text
+
+
+
+def test_pairing_rejects_invalid_device_names(tmp_path, monkeypatch):
+    client = _client(tmp_path, monkeypatch)
+    admin = {"Authorization": f"Bearer {'t' * 48}"}
+    assert client.post("/devices/pair", json={"device_name": 42}, headers=admin).status_code == 400
+    assert client.post("/devices/pair", json={"device_name": " "}, headers=admin).status_code == 400
