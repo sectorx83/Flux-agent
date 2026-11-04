@@ -18,6 +18,74 @@ MAX_PACKAGE_FILES = 256
 SIGNATURE_FILE = "SIGNATURE.ed25519"
 
 
+def build_signed_package(source_dir: Path, output_path: Path, private_key: str) -> Path:
+    """Build a signed plugin ZIP from a directory containing manifest.json."""
+    import os
+    import tempfile
+
+    try:
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    except ImportError as exc:
+        raise RuntimeError("Signed plugins require: pip install 'flux-agent[plugins]'") from exc
+    try:
+        key_bytes = base64.b64decode(private_key, validate=True)
+        if len(key_bytes) != 32:
+            raise ValueError("Ed25519 private key must decode to exactly 32 bytes.")
+        signer = Ed25519PrivateKey.from_private_bytes(key_bytes)
+    except (ValueError, TypeError) as exc:
+        raise ValueError("Invalid base64 Ed25519 private key.") from exc
+
+    root = source_dir.expanduser().resolve()
+    destination = output_path.expanduser().resolve()
+    if not root.is_dir():
+        raise ValueError("Plugin source must be a directory.")
+    try:
+        destination.relative_to(root)
+    except ValueError:
+        pass
+    else:
+        raise ValueError("Output package must be outside the plugin source directory.")
+
+    files: dict[str, bytes] = {}
+    total_size = 0
+    for item in sorted(root.rglob("*")):
+        if item.is_symlink():
+            raise ValueError(f"Plugin source cannot contain symbolic links: {item}")
+        if not item.is_file():
+            continue
+        relative = item.relative_to(root).as_posix()
+        if relative == SIGNATURE_FILE or PurePosixPath(relative).is_absolute() or ".." in PurePosixPath(relative).parts:
+            raise ValueError(f"Invalid plugin source path: {relative}")
+        content = item.read_bytes()
+        total_size += len(content)
+        if len(files) >= MAX_PACKAGE_FILES - 1 or total_size > MAX_PACKAGE_BYTES:
+            raise ValueError("Plugin source exceeds package file-count or 25 MiB size limits.")
+        files[relative] = content
+    if "manifest.json" not in files:
+        raise ValueError("Plugin source directory must contain manifest.json.")
+    manifest = PluginRegistry._validate_manifest(json.loads(files["manifest.json"]))
+    payload = {
+        "manifest": manifest,
+        "files": {name: hashlib.sha256(data).hexdigest() for name, data in sorted(files.items())},
+    }
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+    files[SIGNATURE_FILE] = base64.b64encode(signer.sign(canonical))
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(prefix=".flux-plugin-", suffix=".tmp", dir=destination.parent)
+    os.close(descriptor)
+    temporary = Path(temporary_name)
+    try:
+        with zipfile.ZipFile(temporary, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for name, content in sorted(files.items()):
+                archive.writestr(name, content)
+        if temporary.stat().st_size > MAX_PACKAGE_BYTES:
+            raise ValueError("Compressed plugin package exceeds the 25 MiB size limit.")
+        os.replace(temporary, destination)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return destination
+
+
 @dataclass(frozen=True, slots=True)
 class PluginManifest:
     plugin_id: str
