@@ -81,7 +81,6 @@ def test_browser_tools_are_registered_for_build_mode():
     assert {"browser_navigate", "browser_read", "browser_click"} <= names
 
 
-
 class FakeBrowser:
     _page = object()
 
