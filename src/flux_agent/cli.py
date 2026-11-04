@@ -782,9 +782,10 @@ def deployment_status(
 
 @app.command("deployment-rollback")
 def deployment_rollback(
-    target: str = typer.Argument(..., help="Exact Vercel deployment URL or ID to roll back."),
+    target: str = typer.Argument(..., help="Exact deployment URL/ID or Docker Swarm service name."),
+    provider: str = typer.Option("vercel", "--provider", help="Rollback provider: vercel or docker-swarm."),
 ) -> None:
-    """Roll back a Vercel deployment after an explicit confirmation."""
+    """Roll back an exact Vercel deployment or Docker Swarm service after confirmation."""
     from flux_agent.deployment.engine import DeploymentEngine
 
     console.print(Panel(target, title="Deployment rollback approval", border_style="yellow"))
@@ -792,10 +793,10 @@ def deployment_rollback(
         console.print("Rollback cancelled.")
         return
     try:
-        result = DeploymentEngine().rollback("vercel", target, load_config().workspace, approved=True)
+        result = DeploymentEngine().rollback(provider, target, load_config().workspace, approved=True)
     except (ValueError, OSError, RuntimeError, PermissionError) as exc:
         raise typer.BadParameter(str(exc)) from exc
-    console.print(Panel(result.output or "Rollback command completed.", title="Vercel rollback"))
+    console.print(Panel(result.output or "Rollback command completed.", title=f"{provider} rollback"))
 
 
 @app.command("workflow-list")
