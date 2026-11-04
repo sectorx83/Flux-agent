@@ -10,5 +10,8 @@ Please do not publish credentials, exploit details, or sensitive user data in pu
 - Workspace file tools reject paths that resolve outside the configured workspace.
 - File writes and shell commands require interactive approval.
 - Shell commands execute with the operating-system permissions of the Flux process. Approval prompts are not a sandbox.
-- Remote access, plugins, browser automation, and deployment integrations are not enabled in this initial foundation.
+- Remote API access requires a high-entropy bearer token and should remain behind a private VPN or correctly configured HTTPS reverse proxy.
+- Browser navigation and clicks require interactive approval. Page content is untrusted input and must not be treated as instructions.
+- Workflow event webhooks require the same bearer-token authentication as the remote task API.
+- MCP server commands and plugin-provided executables are trusted local code; configure and run them only when their source is trusted.
 - Run untrusted projects in a disposable, unprivileged environment.
