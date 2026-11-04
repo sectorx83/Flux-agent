@@ -103,9 +103,17 @@ class DeploymentEngine:
         if not approved:
             raise PermissionError("Deployment rollback requires explicit user approval.")
         target = self._validate_target(target)
-        if provider != "vercel":
-            raise ValueError("Rollback is currently supported only for Vercel deployments.")
-        if shutil.which("vercel") is None:
-            raise FileNotFoundError("Required CLI is not installed: vercel")
-        completed = self._run(["vercel", "rollback", target], workspace, timeout=900)
+        if provider == "vercel":
+            binary = "vercel"
+            command = ["vercel", "rollback", target]
+        elif provider == "docker-swarm":
+            if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,254}", target):
+                raise ValueError("Invalid Docker Swarm service name.")
+            binary = "docker"
+            command = ["docker", "service", "rollback", target]
+        else:
+            raise ValueError("Rollback is supported for Vercel deployments and Docker Swarm services.")
+        if shutil.which(binary) is None:
+            raise FileNotFoundError(f"Required CLI is not installed: {binary}")
+        completed = self._run(command, workspace, timeout=900)
         return DeploymentResult(provider, completed.returncode, (completed.stdout + completed.stderr)[-30_000:])
