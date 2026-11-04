@@ -421,7 +421,7 @@ def memory_add(
     project = str(load_config().workspace)
     memory_id = memory.add(project, content, category)
     if semantic:
-        from flux_agent.memory.embeddings import DEFAULT_EMBEDDING_MODEL, LocalEmbedder
+        from flux_agent.memory.embeddings import LocalEmbedder
 
         embedder = LocalEmbedder()
         memory.set_embedding(memory_id, project, embedder.model_name, embedder.embed_one(content))
