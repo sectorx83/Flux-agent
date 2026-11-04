@@ -64,6 +64,10 @@ def test_device_pairing_task_isolation_and_revocation(tmp_path, monkeypatch):
     assert [task["id"] for task in own_tasks.json()["tasks"]] == [task_a]
     assert client.get(f"/tasks/{task_b}", headers={"Authorization": f"Bearer {token_a}"}).status_code == 404
     assert len(client.get("/tasks", headers=admin).json()["tasks"]) == 2
+    assert client.post(
+        "/workflows/events/git.push",
+        headers={"Authorization": f"Bearer {token_a}"},
+    ).status_code == 403
 
     assert client.get("/devices", headers={"Authorization": f"Bearer {token_a}"}).status_code == 403
     revoked = client.delete(f"/devices/{device_a}", headers=admin)
