@@ -74,7 +74,7 @@ flux remote-submit "Check my build" --mode plan
 flux remote-tasks
 ```
 
-Run `flux workflow-worker` in a terminal to execute due local schedules. Workflow payloads use a `task` field and optional `mode` (`chat`, `plan`, or `build`).
+Run `flux workflow-worker` in a terminal to execute due local schedules. Workflow payloads use a `task` field and optional `mode` (`chat`, `plan`, or `build`). Use `--max-retries` and `--retry-delay` on `workflow-add` to configure retries. Add `--event-name EVENT` to wait for a named event, then trigger it with `flux workflow-trigger EVENT` or the authenticated remote API endpoint `POST /workflows/events/{event_name}`.
 
 ## Provider fallback
 
