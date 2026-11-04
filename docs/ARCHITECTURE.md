@@ -11,10 +11,10 @@ Flux is local-first. The CLI owns the user session, the provider router owns mod
 - **Agents:** automatic decomposition of complex Build tasks into bounded specialists. Specialists share read-only workspace file tools; mutations remain with the primary agent.
 - **Memory:** project-scoped SQLite notes with FTS5 keyword search and optional local FastEmbed vectors. Embeddings are model-versioned, stored as compact float blobs, and ranked with cosine similarity.
 - **Integrations:** official GitHub, Slack, Discord, Telegram, Google Tasks, and Notion API adapters; credentials are read from environment variables. Build actions require confirmation. MCP stdio remains available. Plugin packages use Ed25519 signatures and signed HTTPS catalog metadata; packages are stored but not executed.
-- **Environment:** application secrets can be stored in a private JSON file with atomic writes and restrictive POSIX permissions. Values are loaded only when absent from the process environment and are never shown by the management CLI.
+- **Environment:** application secrets can be stored in a private JSON file with atomic writes and restrictive POSIX permissions. Values are plaintext at rest, loaded only when absent from the process environment, and never shown by the management CLI.
 - **Automation:** persistent one-shot, interval, and named event workflows with bounded retries and retry notifications. Authenticated webhook events can trigger waiting workflows.
 - **Browser:** optional Playwright controller integrated into Build-mode tool calls for approved navigation and clicks plus page-text inspection.
-- **Deployment:** approved wrappers around installed Vercel, Docker, and GitHub CLIs, status inspection for all three, and approved Vercel rollback.
+- **Deployment:** approved wrappers around installed Vercel, Docker, and GitHub CLIs, status inspection for all three, and approved Vercel and Docker Swarm rollback.
 - **Remote:** authenticated API with administrator pairing, hashed per-device tokens, device-scoped task visibility, revocation, and server-sent event task streaming.
 
 ## Trust boundaries
@@ -29,4 +29,4 @@ Flux is local-first. The CLI owns the user session, the provider router owns mod
 
 ## Remaining production work
 
-In-app OAuth consent and refresh-token lifecycle, execution isolation through an OS/container sandbox, plugin execution and permission enforcement (not implemented), Docker and GitHub workflow rollback, additional provider-specific deployment verification, release signing/provenance, and expanded integration tests. Signed packages are integrity-verified but are not a sandbox or a safety guarantee.
+In-app OAuth consent and refresh-token lifecycle, execution isolation through an OS/container sandbox, plugin execution and permission enforcement (not implemented), generic Docker container rollback, workflow-specific GitHub Actions rollback, additional provider-specific deployment verification, release signing/provenance, OAuth token lifecycle, and expanded live integration tests. Signed packages are integrity-verified but are not a sandbox or a safety guarantee.
