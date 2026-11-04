@@ -60,7 +60,7 @@ def test_specialist_cannot_execute_write_tools(tmp_path: Path):
     workspace = Workspace(tmp_path)
     provider = FakeProvider(first_tool="write_file")
 
-    result = json.loads(
+    json.loads(
         _execute_tool(
             workspace,
             "delegate_tasks",
@@ -128,7 +128,6 @@ def test_browser_navigation_and_click_use_approved_actions(tmp_path: Path, monke
     ) == "Clicked selector: button.submit"
     assert browser.navigated == [("https://example.com", True)]
     assert browser.clicked == [("button.submit", True)]
-
 
 
 def test_external_integration_action_requires_confirmation(tmp_path: Path, monkeypatch):
