@@ -33,11 +33,11 @@ python -m pip install -e ".[dev]"
 Optional features:
 
 ```bash
-python -m pip install -e ".[browser,remote,memory]"
+python -m pip install -e ".[browser,remote,memory,plugins]"
 playwright install chromium
 ```
 
-Set `GROQ_API_KEY` in your shell, or copy `.env.example` to `.env` for local development. Do not commit `.env`.
+Set `GROQ_API_KEY` in your shell, use `flux env-set GROQ_API_KEY` to store it privately, or copy `.env.example` to `.env` for local development. `flux env-list` lists stored names without showing values; `flux env-unset KEY` removes one after confirmation. Never commit `.env` or `secrets.json`.
 
 ## Run
 
@@ -95,6 +95,26 @@ Set the relevant token variables in `.env` or your shell. Run `flux connector-st
 ## Usage and model capabilities
 
 Use `flux usage` to inspect locally recorded token counts. Add exact model prices with `flux usage-price MODEL INPUT OUTPUT`, in a consistent currency unit per million tokens. Unknown prices remain unestimated. Custom model capabilities are declared in the `[flux.model_capabilities]` TOML table; unknown models are chat-only until explicitly declared.
+
+## Signed plugins
+
+Install a signed local package with a trusted base64-encoded Ed25519 public key:
+
+```bash
+flux plugin-install-package ./example.fluxplugin --public-key BASE64_TRUSTED_KEY
+```
+
+Install an exact version from a signed HTTPS catalog:
+
+```bash
+flux plugin-install example-plugin 1.2.0 --catalog https://example.org/flux/catalog.json --public-key BASE64_TRUSTED_KEY
+```
+
+The catalog and package signatures must verify with the trusted key. The catalog entry also pins the package SHA-256 digest. Obtain the signing key from a trusted publisher through an independent channel. Packages are stored as data only; Flux does not execute plugin code.
+
+## Deployment operations
+
+Use `flux deployment-status PROVIDER TARGET` to inspect a Vercel deployment URL, Docker container ID, or GitHub Actions run ID. `flux deployment-rollback DEPLOYMENT_URL` requests an explicit confirmation and invokes Vercel rollback for the exact deployment. Docker and GitHub workflow rollback are not currently implemented.
 
 ## Provider fallback
 
