@@ -159,6 +159,10 @@ flux remote-watch TASK_ID
 
 The API and worker share the persistent task database at the platform data directory. Device credentials are stored separately in `remote-devices.sqlite3`; set `FLUX_REMOTE_DEVICE_DB` to override that path. Pair devices with the administrator token, then put the one-time device token in that device's `FLUX_REMOTE_TOKEN`. Device tokens can only view their own tasks. Revoke them from the host with `flux remote-revoke DEVICE_ID`. Use `flux remote-watch TASK_ID` to stream task status and the final result. Keep the API on loopback behind a private VPN or a correctly configured HTTPS reverse proxy. Do not expose the bearer-token API directly to the public internet.
 
+## Vercel dashboard
+
+A Vercel-hosted control room is available at https://flux-dashboard-alpha.vercel.app. It serves the dashboard while the Python agent and workers continue running on your own host (for example, Termux). Configure the Vercel project's `FLUX_API_URL` environment variable with the host's public HTTPS origin before connecting. Keep the API bound to loopback behind a trusted HTTPS tunnel or reverse proxy; never expose the bearer-token API directly to the internet. See [docs/VERCEL_DASHBOARD.md](docs/VERCEL_DASHBOARD.md) for setup and security details.
+
 ## Tests
 
 ```bash
