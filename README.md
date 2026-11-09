@@ -10,7 +10,7 @@
 - **Project memory:** workspace-scoped SQLite notes with full-text search and optional local vector embeddings through FastEmbed.
 - **Multi-agent Build tool:** delegate up to four independent subtasks to parallel specialist agents and collect their results.
 - **Workflow automation:** persistent one-shot and recurring schedules, with a foreground worker that executes due workflows.
-- **Remote access:** paired devices with individual revocable credentials, device-scoped task history, persistent execution queues, and live task-status streaming.
+- **Remote access and web dashboard:** a responsive midnight-themed control room for submitting chat/plan/build tasks and monitoring task history, backed by the same authenticated API, paired devices, revocable credentials, persistent execution queues, and live task-status streaming.
 - **Browser automation:** optional Playwright controller with explicit approval for navigation and page interactions.
 - **Official service connectors:** GitHub issues, Slack/Discord/Telegram messaging, Google Tasks, and Notion tasks, with credential checks and approval-gated Build actions.
 - **Deployment operations:** approved Vercel, Docker, and GitHub CLI commands, deployment status inspection, and approval-gated Vercel and Docker Swarm rollback.
@@ -137,6 +137,8 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"
 export FLUX_REMOTE_TOKEN="paste-generated-token"
 uvicorn flux_agent.remote.server:create_app --factory --host 127.0.0.1 --port 8765
 ```
+
+Open `http://127.0.0.1:8765/` or `http://127.0.0.1:8765/dashboard` to use the Flux web dashboard. Sign in with the remote administrator token (or a paired device token); the dashboard submits tasks to the existing queue and refreshes task status. The token is held in the browser tab session and cleared when you disconnect or close the session. Keep the API on loopback behind a private VPN or a correctly configured HTTPS reverse proxy for remote access.
 
 In a second terminal on the host, run:
 
