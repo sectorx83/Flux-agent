@@ -129,15 +129,21 @@ Browser automation can also be used as a Python API via `BrowserAutomation`. Dep
 
 ## Remote access and Termux
 
-Install the remote extra on the host:
+For Android Termux, install only the core and remote dependencies. Do not install the optional `dev` or `plugins` extras on Termux: Ruff's native executable and the optional `cryptography` package may not have wheels for Android's Python ABI (notably Python 3.14). The remote extra does not need either package.
 
 ```bash
+pkg update -y && pkg upgrade -y
+pkg install python git openssl libffi -y
+git clone https://github.com/sectorx83/Flux-agent.git
+cd Flux-agent
 python -m pip install --upgrade pip
 python -m pip install -e ".[remote]"
 python -c "import secrets; print(secrets.token_urlsafe(48))"
 export FLUX_REMOTE_TOKEN="paste-generated-token"
 uvicorn flux_agent.remote.server:create_app --factory --host 127.0.0.1 --port 8765
 ```
+
+On desktop Linux, macOS, or Windows, the normal `python -m pip install -e ".[remote]"` command is sufficient. Install `.[plugins]` only on a supported desktop/server Python environment when signed-plugin verification is needed.
 
 Open `http://127.0.0.1:8765/` or `http://127.0.0.1:8765/dashboard` to use the Flux web dashboard. Sign in with the remote administrator token (or a paired device token); the dashboard submits tasks to the existing queue and refreshes task status. The token is held in the browser tab session and cleared when you disconnect or close the session. Keep the API on loopback behind a private VPN or a correctly configured HTTPS reverse proxy for remote access.
 
