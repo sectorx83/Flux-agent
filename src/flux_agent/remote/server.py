@@ -14,7 +14,7 @@ from flux_agent.remote.devices import RemoteDeviceStore
 def create_app():
     try:
         from fastapi import FastAPI, Header, HTTPException
-        from fastapi.responses import StreamingResponse
+        from fastapi.responses import HTMLResponse, StreamingResponse
         from platformdirs import user_data_dir
     except ImportError as exc:
         raise RuntimeError("Install remote support with: pip install 'flux-agent[remote]'") from exc
@@ -44,6 +44,13 @@ def create_app():
     def authorize_admin(authorization: str | None) -> None:
         if authenticate(authorization) != "admin":
             raise HTTPException(status_code=403, detail="Administrator credential required.")
+
+    @app.get("/", response_class=HTMLResponse)
+    @app.get("/dashboard", response_class=HTMLResponse)
+    def dashboard():
+        from flux_agent.remote.dashboard import DASHBOARD_HTML
+
+        return HTMLResponse(DASHBOARD_HTML, headers={"Cache-Control": "no-store"})
 
     @app.get("/health")
     def health():
