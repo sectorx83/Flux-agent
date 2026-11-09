@@ -24,6 +24,8 @@ Install the core and remote dependencies, then start the API and worker. On Term
 ```bash
 pkg update -y && pkg upgrade -y
 pkg install python git openssl libffi -y
+git clone https://github.com/sectorx83/Flux-agent.git
+cd Flux-agent
 python -m pip install --upgrade pip
 python -m pip install -e ".[remote]"
 python -c 'import secrets; print(secrets.token_urlsafe(48))'
@@ -48,4 +50,4 @@ Keep the API bound to loopback. Publish it through a trusted HTTPS tunnel or rev
 
 ## Git deployment connection
 
-The initial Vercel deployment was created from the dashboard source files. The Vercel Git integration could not link `sectorx83/Flux-agent` because the connected Vercel GitHub installation currently lacks write/admin access to that repository. To enable automatic deploys on future pushes, grant the Vercel GitHub App access to `sectorx83/Flux-agent` and import/link the repository to the existing `flux-dashboard` Vercel project. The static dashboard is at the repository root.
+The initial Vercel deployment was created from the dashboard source files. The Vercel Git integration could not link `sectorx83/Flux-agent` because the connected Vercel GitHub installation currently lacks write/admin access to that repository. To enable automatic deploys on future pushes, grant the Vercel GitHub App access to `sectorx83/Flux-agent` and import/link the repository to the existing `flux-agent` Vercel project. The static dashboard is at the repository root.
