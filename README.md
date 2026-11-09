@@ -132,6 +132,7 @@ Browser automation can also be used as a Python API via `BrowserAutomation`. Dep
 Install the remote extra on the host:
 
 ```bash
+python -m pip install --upgrade pip
 python -m pip install -e ".[remote]"
 python -c "import secrets; print(secrets.token_urlsafe(48))"
 export FLUX_REMOTE_TOKEN="paste-generated-token"
