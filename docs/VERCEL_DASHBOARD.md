@@ -19,9 +19,12 @@ The relay only forwards the dashboard's supported routes and passes the browser'
 
 ## Run the host in Termux
 
-Install Python dependencies and start the API and worker:
+Install the core and remote dependencies, then start the API and worker. On Termux, do not install the optional `dev` or `plugins` extras: Ruff and cryptography may lack compatible Android Python 3.14 wheels. The remote extra does not require them:
 
 ```bash
+pkg update -y && pkg upgrade -y
+pkg install python git openssl libffi -y
+python -m pip install --upgrade pip
 python -m pip install -e ".[remote]"
 python -c 'import secrets; print(secrets.token_urlsafe(48))'
 export FLUX_REMOTE_TOKEN='paste-the-generated-token'
