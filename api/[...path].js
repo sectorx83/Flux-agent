@@ -1,6 +1,6 @@
 /**
  * Same-origin relay from the Vercel dashboard to the private Flux host.
- * Configure FLUX_API_URL as a Vercel environment variable (HTTPS URL).
+ * Configure FLUX_API_URL as a Vercel environment variable (HTTPS origin).
  * Browser authorization is forwarded; credentials are never stored here.
  */
 const ALLOWED = /^(health|tasks(?:\/\d+(?:\/stream)?)?|devices(?:\/pair|\/[^/]+)?|workflows\/events\/[A-Za-z0-9_.-]+)$/;
@@ -8,11 +8,15 @@ const ALLOWED = /^(health|tasks(?:\/\d+(?:\/stream)?)?|devices(?:\/pair|\/[^/]+)
 module.exports = async function handler(req, res) {
   const base = process.env.FLUX_API_URL;
   if (!base) {
-    res.status(503).json({ detail: "Flux host is not configured. Set FLUX_API_URL in Vercel." });
+    res.status(503).json({
+      detail: "Flux host is not configured. Set FLUX_API_URL in Vercel."
+    });
     return;
   }
 
-  const rawPath = Array.isArray(req.query.path) ? req.query.path.join("/") : "";
+  const rawPath = Array.isArray(req.query.path)
+    ? req.query.path.join("/")
+    : "";
   if (!ALLOWED.test(rawPath)) {
     res.status(404).json({ detail: "Unknown Flux API route." });
     return;
@@ -21,17 +25,28 @@ module.exports = async function handler(req, res) {
   let target;
   try {
     const parsed = new URL(base);
-    if (parsed.protocol !== "https:" || parsed.username || parsed.password) throw new Error();
+    if (
+      parsed.protocol !== "https:" ||
+      parsed.username ||
+      parsed.password ||
+      parsed.pathname !== "/" ||
+      parsed.search ||
+      parsed.hash
+    ) {
+      throw new Error("FLUX_API_URL must be an HTTPS origin.");
+    }
     target = new URL("/" + rawPath, parsed.origin);
   } catch {
-    res.status(500).json({ detail: "FLUX_API_URL must be a valid HTTPS origin." });
+    res.status(500).json({
+      detail: "FLUX_API_URL must be a valid HTTPS origin without a path."
+    });
     return;
   }
 
   const method = req.method || "GET";
   if (!["GET", "POST", "DELETE"].includes(method)) {
-    res.status(405).setHeader("Allow", "GET, POST, DELETE");
-    res.end();
+    res.setHeader("Allow", "GET, POST, DELETE");
+    res.status(405).end();
     return;
   }
 
@@ -41,12 +56,23 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const body = method === "POST" ? await new Promise((resolve, reject) => {
-      const chunks = [];
-      req.on("data", chunk => chunks.push(chunk));
-      req.on("end", () => resolve(Buffer.concat(chunks)));
-      req.on("error", reject);
-    }) : undefined;
+    let body;
+    if (method === "POST") {
+      // Vercel's Node runtime parses JSON bodies before invoking the handler.
+      // Reading the request stream here can therefore forward an empty body.
+      if (req.body !== undefined) {
+        body = Buffer.from(
+          typeof req.body === "string" ? req.body : JSON.stringify(req.body)
+        );
+      } else {
+        body = await new Promise((resolve, reject) => {
+          const chunks = [];
+          req.on("data", chunk => chunks.push(chunk));
+          req.on("end", () => resolve(Buffer.concat(chunks)));
+          req.on("error", reject);
+        });
+      }
+    }
 
     const upstream = await fetch(target, {
       method,
@@ -66,10 +92,17 @@ module.exports = async function handler(req, res) {
       res.end();
       return;
     }
-    for await (const chunk of upstream.body) res.write(Buffer.from(chunk));
+    for await (const chunk of upstream.body) {
+      res.write(Buffer.from(chunk));
+    }
     res.end();
-  } catch (error) {
-    if (!res.headersSent) res.status(502).json({ detail: "Flux host is unreachable. Check its HTTPS tunnel and FLUX_API_URL." });
-    else res.end();
+  } catch {
+    if (!res.headersSent) {
+      res.status(502).json({
+        detail: "Flux host is unreachable. Check its HTTPS tunnel and FLUX_API_URL."
+      });
+    } else {
+      res.end();
+    }
   }
 };
