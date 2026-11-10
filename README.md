@@ -145,7 +145,7 @@ uvicorn flux_agent.remote.server:create_app --factory --host 127.0.0.1 --port 87
 
 On desktop Linux, macOS, or Windows, the normal `python -m pip install -e ".[remote]"` command is sufficient. Install `.[plugins]` only on a supported desktop/server Python environment when signed-plugin verification is needed.
 
-Open `http://127.0.0.1:8765/` or `http://127.0.0.1:8765/dashboard` to use the Flux web dashboard. Sign in with the remote administrator token (or a paired device token); the dashboard submits tasks to the existing queue and refreshes task status. The token is held in the browser tab session and cleared when you disconnect or close the session. Keep the API on loopback behind a private VPN or a correctly configured HTTPS reverse proxy for remote access.
+Open `http://127.0.0.1:8765/` or `http://127.0.0.1:8765/dashboard` to use the Flux web dashboard. Sign in with the remote administrator token (or a paired device token); the dashboard provides an agent console, run history, live status refresh, and a run-details panel that displays the completed response or execution error. The dashboard submits tasks to the persistent queue; run `flux remote-worker` in a second host terminal to execute them. The token is held in the browser tab session and cleared when you disconnect or close the session. Keep the API on loopback behind a private VPN or a correctly configured HTTPS reverse proxy for remote access.
 
 In a second terminal on the host, run:
 
